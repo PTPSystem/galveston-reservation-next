@@ -32,12 +32,6 @@ export default async function AdminHolidaysPage() {
         </div>
       </div>
 
-      {wasSeeded && (
-        <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
-          Default holiday periods have been automatically populated.
-        </div>
-      )}
-
       <HolidayCalendarClient initialHolidays={holidays} />
     </div>
   );
