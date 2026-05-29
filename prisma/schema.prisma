@@ -132,6 +132,17 @@ model EmailSetting {
   @@map("email_settings")
 }
 
+model RateSetting {
+  id              Int      @id @default(autoincrement())
+  weekdayRate     Int      @default(500)
+  weekendRate     Int      @default(650)
+  holidayRate     Int      @default(700)
+  weeklyDiscount  Int      @default(350)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("rate_settings")
+}
+
 enum BookingStatus {
   PENDING
   REVIEWING
