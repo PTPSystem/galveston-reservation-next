@@ -158,8 +158,16 @@ export default function RequestToBook() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-2xl border">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="relative space-y-6 bg-white p-8 rounded-2xl border">
+        {/* Close button */}
+        <a 
+          href="/" 
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-2xl leading-none"
+          aria-label="Close booking window"
+        >
+          <i className="fa-solid fa-times"></i>
+        </a>
+        <div className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-800 mb-1.5">Check-in Date</label>
             <input
