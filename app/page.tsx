@@ -14,7 +14,7 @@ export default function BayfrontRetreatLanding() {
               Bayfront Retreat
             </h1>
             
-            <p className="text-2xl text-slate-200 mb-8">
+            <p className="text-2xl text-slate-100 mb-8">
               Private waterfront home on Galveston Bay.
             </p>
 
@@ -32,7 +32,7 @@ export default function BayfrontRetreatLanding() {
                 How It Works
               </a>
             </div>
-            <p className="mt-4 text-sm text-slate-300">
+            <p className="mt-4 text-sm text-slate-200">
               All bookings are subject to host approval. We do not offer instant reservations.
             </p>
           </div>
@@ -69,17 +69,17 @@ export default function BayfrontRetreatLanding() {
           <div className="space-y-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold">1</div>
             <h3 className="font-semibold text-lg">Submit a Request</h3>
-            <p className="text-slate-600">Tell us your preferred dates and group size. This is not an instant booking — all requests are reviewed.</p>
+            <p className="text-slate-800">Tell us your preferred dates and group size. This is not an instant booking — all requests are reviewed.</p>
           </div>
           <div className="space-y-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold">2</div>
             <h3 className="font-semibold text-lg">We Review & Quote</h3>
-            <p className="text-slate-600">We check availability and send you a personalized quote with full pricing breakdown (including taxes and fees) within 24 hours.</p>
+            <p className="text-slate-800">We check availability and send you a personalized quote with full pricing breakdown (including taxes and fees) within 24 hours.</p>
           </div>
           <div className="space-y-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold">3</div>
             <h3 className="font-semibold text-lg">Confirm Your Stay</h3>
-            <p className="text-slate-600">Once you accept the quote and pay the deposit, your dates are secured.</p>
+            <p className="text-slate-800">Once you accept the quote and pay the deposit, your dates are secured.</p>
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export default function BayfrontRetreatLanding() {
 
       {/* Admin Access (temporary) */}
       <div className="border-t bg-slate-50">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-600">
+        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-800">
           <strong>Property Manager:</strong>{" "}
           <a href="/admin/requests" className="text-emerald-600 hover:underline font-medium">Booking Requests</a> •{" "}
           <a href="/admin/holidays" className="text-emerald-600 hover:underline font-medium">Holiday Calendar</a>

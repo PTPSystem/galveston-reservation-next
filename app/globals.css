@@ -47,9 +47,19 @@ button {
   color: #4b5563; /* slate-600 - still very readable on white */
 }
 
-/* Slightly stronger for 600 when used as body text */
-.text-slate-600 {
-  color: #374151; /* slate-700 */
+/* Force much darker text for common secondary colors (user is very sensitive to grey text) */
+.text-slate-300,
+.text-slate-400,
+.text-slate-500,
+.text-slate-600,
+.text-slate-700 {
+  color: #1f2937; /* slate-800 - much stronger */
+}
+
+/* Keep only intentional very light text on dark backgrounds */
+.bg-slate-900 .text-slate-200,
+.bg-slate-900 .text-slate-300 {
+  color: #e5e7eb; /* light grey only when on dark hero */
 }
 
 
