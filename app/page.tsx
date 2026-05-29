@@ -52,7 +52,7 @@ export default function BayfrontRetreatLanding() {
           </div>
           <div>
             <div className="font-medium text-slate-800">Bedrooms</div>
-            <div>5 bedrooms • 4.5 baths</div>
+            <div>4 bedrooms • 3 baths</div>
           </div>
           <div>
             <div className="font-medium text-slate-800">Minimum Stay</div>
