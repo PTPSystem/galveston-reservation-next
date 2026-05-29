@@ -5,7 +5,7 @@ export default function BayfrontRetreatLanding() {
       <div className="relative bg-slate-900 text-white">
         <div className="max-w-5xl mx-auto px-6 py-20">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-sm mb-4 text-white">
+            <div className="inline-flex items-center gap-2 bg-white/30 px-3 py-1 rounded-full text-sm mb-4 text-white font-medium">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas
             </div>
@@ -27,7 +27,7 @@ export default function BayfrontRetreatLanding() {
               </a>
               <a 
                 href="#how-it-works" 
-                className="inline-flex items-center justify-center px-8 py-4 border border-white text-white hover:bg-white/10 rounded-2xl font-semibold text-lg transition-colors"
+                className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white hover:bg-white hover:text-slate-900 rounded-2xl font-semibold text-lg transition-colors"
               >
                 How It Works
               </a>
