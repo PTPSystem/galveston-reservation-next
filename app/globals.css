@@ -62,4 +62,10 @@ button {
   color: #e5e7eb; /* light grey only when on dark hero */
 }
 
+/* Extra safety for hero area - force high contrast white-ish text */
+.bg-slate-900 h1,
+.bg-slate-900 p.text-2xl {
+  color: #ffffff !important;
+}
+
 
