@@ -83,13 +83,18 @@ export default function BayfrontRetreatLanding() {
           </div>
         </div>
 
-        <div className="mt-12">
+        <div className="mt-12 space-y-3 text-center">
           <a 
             href="/request" 
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:bg-slate-100 transition-colors text-lg"
           >
             Request to Book →
           </a>
+          <div>
+            <a href="/availability" className="text-sm text-emerald-600 hover:underline">
+              View availability calendar
+            </a>
+          </div>
         </div>
       </div>
 

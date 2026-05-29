@@ -196,22 +196,28 @@ export default function RequestToBook() {
           <i className="fa-solid fa-times"></i>
         </a>
         {/* Availability Notice */}
-        {!loadingAvailability && unavailablePeriods.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
-            <div className="font-medium text-amber-800 mb-2">Currently unavailable dates:</div>
-            <ul className="space-y-1 text-amber-700">
-              {unavailablePeriods.map((period, index) => (
-                <li key={index}>
-                  {new Date(period.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                  {new Date(period.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </li>
-              ))}
-            </ul>
-            <p className="text-amber-600 mt-2 text-xs">
-              These dates are already confirmed. Please choose different dates if possible.
-            </p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium text-amber-800">Check full availability calendar</span>
+            <a href="/availability" className="text-emerald-600 hover:underline font-medium text-xs">View calendar →</a>
           </div>
-        )}
+          {!loadingAvailability && unavailablePeriods.length > 0 ? (
+            <>
+              <div className="text-amber-700 text-xs mb-1">Currently unavailable:</div>
+              <ul className="space-y-0.5 text-amber-700 text-xs">
+                {unavailablePeriods.slice(0, 3).map((period, index) => (
+                  <li key={index}>
+                    {new Date(period.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
+                    {new Date(period.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </li>
+                ))}
+                {unavailablePeriods.length > 3 && <li>+ {unavailablePeriods.length - 3} more periods</li>}
+              </ul>
+            </>
+          ) : (
+            <p className="text-amber-600 text-xs">No dates are currently confirmed as unavailable.</p>
+          )}
+        </div>
 
         <div className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
