@@ -41,43 +41,43 @@ export async function sendBookingConfirmationEmail({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Bayfront Retreat <bookings@yourdomain.com>', // TODO: Update with real domain when ready
+      from: `Bayfront Retreat <${process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com'}>`,
       to: [to],
       subject: 'Your booking request has been received - Bayfront Retreat',
       html: `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">Thank you, ${guestName.split(' ')[0]}!</h1>
-          <p style="font-size: 16px; color: #374151; margin-bottom: 24px;">
-            We've received your request to stay at Bayfront Retreat.
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background-color: #ffffff;">
+          <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px 0; color: #111827;">
+            Thank you, ${guestName.split(' ')[0]}.
+          </h1>
+          
+          <p style="font-size: 15px; line-height: 1.6; color: #374151; margin: 0 0 24px 0;">
+            We've received your request to stay at Bayfront Retreat and will review it shortly.
           </p>
 
-          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-            <p style="margin: 0 0 8px 0; font-weight: 600;">Requested Dates</p>
-            <p style="margin: 0; color: #374151;">
-              ${formattedStart} — ${formattedEnd}<br/>
+          <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Requested Dates</p>
+            <p style="margin: 0; font-size: 15px; color: #111827;">
+              <strong>${formattedStart}</strong> — <strong>${formattedEnd}</strong><br>
               ${numGuests} guest${numGuests > 1 ? 's' : ''}
             </p>
           </div>
 
-          <p style="color: #374151;">
+          <p style="font-size: 15px; line-height: 1.6; color: #374151; margin: 0 0 24px 0;">
             We will review your request and send you a personalized quote within 24 hours.
           </p>
 
           ${approvalToken ? `
-          <p style="margin-top: 20px;">
+          <p style="margin: 0 0 24px 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/${approvalToken}" 
-               style="color: #059669; text-decoration: underline;">
-              View your quote (once sent)
+               style="color: #0f766e; text-decoration: underline; font-weight: 500;">
+              View your request status
             </a>
           </p>
           ` : ''}
 
-          <p style="color: #374151; margin-top: 24px;">
-            If you have any questions in the meantime, just reply to this email.
-          </p>
-
-          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
-            — The Bayfront Retreat Team
+          <p style="font-size: 14px; color: #6b7280; margin: 32px 0 0 0;">
+            If you have any questions, just reply to this email.<br><br>
+            — Bayfront Retreat
           </p>
         </div>
       `,
@@ -141,38 +141,42 @@ export async function sendQuoteEmail({
       to: [to],
       subject: `Your Quote for Bayfront Retreat – ${formattedStart} to ${formattedEnd}`,
       html: `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;">Hi ${guestName.split(' ')[0]},</h1>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background-color: #ffffff;">
+          <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 8px 0; color: #111827;">
+            Your quote for Bayfront Retreat
+          </h1>
           
-          <p style="font-size: 16px; color: #374151;">
-            Thank you for your interest in Bayfront Retreat. Here is your personalized quote:
+          <p style="font-size: 15px; color: #374151; margin: 0 0 24px 0;">
+            Hi ${guestName.split(' ')[0]},<br><br>
+            Thank you for your interest. Below is your personalized quote.
           </p>
 
-          <div style="background: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <p style="margin: 0 0 12px 0; font-weight: 600;">Stay Details</p>
-            <p style="margin: 0; color: #374151;">
-              ${formattedStart} → ${formattedEnd}<br/>
+          <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Dates</p>
+            <p style="margin: 0 0 16px 0; font-size: 15px; color: #111827;">
+              <strong>${formattedStart}</strong> — <strong>${formattedEnd}</strong><br>
               ${pricing.nights || '?'} nights
             </p>
 
-            <hr style="margin: 16px 0; border: none; border-top: 1px solid #e5e7eb;" />
-
-            <p style="margin: 0 0 4px 0; font-weight: 600; font-size: 18px;">Total Due: <span style="color: #059669;">$${total}</span></p>
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Total</p>
+            <p style="margin: 0; font-size: 22px; font-weight: 600; color: #111827;">
+              $${total}
+            </p>
           </div>
 
-          <p style="margin-top: 24px;">
+          <p style="margin: 0 0 24px 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/${approvalToken}" 
-               style="background-color: #059669; color: white; padding: 12px 24px; border-radius: 9999px; text-decoration: none; font-weight: 600;">
-              View Your Full Quote
+               style="display: inline-block; background-color: #0f766e; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
+              View Full Quote &amp; Details
             </a>
           </p>
 
-          <p style="color: #374151; margin-top: 32px;">
-            Please reply to this email or call us to confirm your stay.
+          <p style="font-size: 14px; color: #4b5563; margin: 0;">
+            Please reply to this email to confirm your stay or if you have any questions.
           </p>
 
-          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
-            — The Bayfront Retreat Team
+          <p style="font-size: 13px; color: #9ca3af; margin-top: 32px;">
+            — Bayfront Retreat
           </p>
         </div>
       `,
