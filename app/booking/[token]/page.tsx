@@ -1,6 +1,10 @@
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 
+// Prevent this page from being statically generated at build time
+// (it needs database access at runtime)
+export const dynamic = 'force-dynamic';
+
 interface Props {
   params: Promise<{ token: string }>;
 }
