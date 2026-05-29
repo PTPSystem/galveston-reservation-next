@@ -27,7 +27,7 @@ export default function BayfrontRetreatLanding() {
               </a>
               <a 
                 href="#how-it-works" 
-                className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white hover:bg-white hover:text-slate-900 rounded-2xl font-semibold text-lg transition-colors"
+                className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold text-lg"
               >
                 How It Works
               </a>
