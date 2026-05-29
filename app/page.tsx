@@ -120,3 +120,4 @@ export default function BayfrontRetreatLanding() {
     </div>
   );
 }
+// Force fresh Vercel build - react-day-picker dependency - Fri May 29 16:48:51 CDT 2026
