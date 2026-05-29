@@ -22,7 +22,7 @@ export default function BayfrontRetreatLanding() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <a 
-                href="/request" 
+                href="#availability" 
                 className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:bg-slate-100 transition-colors text-lg"
               >
                 Request to Book
@@ -87,19 +87,19 @@ export default function BayfrontRetreatLanding() {
 
         <div className="mt-12 space-y-3 text-center">
           <a 
-            href="/request" 
+            href="#availability" 
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:bg-slate-100 transition-colors text-lg"
           >
             Request to Book →
           </a>
           <div className="text-sm text-slate-500">
-            Scroll down to see the availability calendar and select your dates.
+            Select your dates below on the calendar to check availability before requesting.
           </div>
         </div>
       </div>
 
       {/* Availability Calendar - Book from here */}
-      <div className="border-t bg-white">
+      <div id="availability" className="border-t bg-white">
         <div className="max-w-5xl mx-auto px-6 py-16">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-semibold tracking-tight">Check Availability &amp; Request Your Dates</h2>
