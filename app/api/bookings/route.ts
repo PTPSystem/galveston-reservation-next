@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { bookingRequestSchema, validateBookingDates } from '@/lib/validations/booking';
 import { randomBytes } from 'crypto';
 import { sendBookingConfirmationEmail } from '@/lib/email';
+import { getEmailRecipients } from '@/lib/email-settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +68,11 @@ export async function POST(request: NextRequest) {
       approvalToken: approvalToken,
     });
 
-    // TODO: Send email notification to admin with approval link
+    // Notify internal recipients (Property Manager + Owner)
+    const recipients = await getEmailRecipients();
+    console.log(`[Booking] New request #${bookingRequest.id} from ${data.guestEmail}. Notifying: ${recipients.propertyManagerEmail}, ${recipients.ownerEmail}`);
+
+    // TODO: Send proper email notification to admin with approval link (instead of just console.log)
 
     return NextResponse.json(
       {

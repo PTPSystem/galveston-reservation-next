@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function RequestToBook() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,6 +19,15 @@ export default function RequestToBook() {
   // Availability data
   const [unavailablePeriods, setUnavailablePeriods] = useState<Array<{ startDate: string; endDate: string }>>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(true);
+
+  // Prefill dates from URL (coming from calendar on homepage)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const urlStart = searchParams.get('startDate');
+    const urlEnd = searchParams.get('endDate');
+    if (urlStart && !startDate) setStartDate(urlStart);
+    if (urlEnd && !endDate) setEndDate(urlEnd);
+  }, [searchParams]);
 
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStart = e.target.value;
@@ -197,23 +207,9 @@ export default function RequestToBook() {
         </a>
         {/* Availability Notice */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-amber-800">Check full availability calendar</span>
-            <a href="/availability" className="text-emerald-600 hover:underline font-medium text-xs">View calendar →</a>
-          </div>
+          <div className="font-medium text-amber-800 mb-1">Check the calendar below for availability</div>
           {!loadingAvailability && unavailablePeriods.length > 0 ? (
-            <>
-              <div className="text-amber-700 text-xs mb-1">Currently unavailable:</div>
-              <ul className="space-y-0.5 text-amber-700 text-xs">
-                {unavailablePeriods.slice(0, 3).map((period, index) => (
-                  <li key={index}>
-                    {new Date(period.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                    {new Date(period.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </li>
-                ))}
-                {unavailablePeriods.length > 3 && <li>+ {unavailablePeriods.length - 3} more periods</li>}
-              </ul>
-            </>
+            <p className="text-amber-700 text-xs">Some dates are already confirmed. See the calendar on the homepage for details.</p>
           ) : (
             <p className="text-amber-600 text-xs">No dates are currently confirmed as unavailable.</p>
           )}

@@ -35,3 +35,20 @@ export async function seedDefaultHolidaysIfEmpty() {
 
   return false;
 }
+
+export async function seedDefaultEmailSettingsIfEmpty() {
+  const existing = await prisma.emailSetting.findFirst();
+
+  if (!existing) {
+    await prisma.emailSetting.create({
+      data: {
+        propertyManagerEmail: process.env.BOOKING_APPROVAL_EMAIL || 'livingbayfront@gmail.com',
+        ownerEmail: process.env.BOOKING_APPROVAL_EMAIL || 'livingbayfront@gmail.com',
+      },
+    });
+    console.log('✅ Seeded default email recipients.');
+    return true;
+  }
+
+  return false;
+}

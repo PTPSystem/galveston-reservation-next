@@ -1,3 +1,5 @@
+import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+
 export default function BayfrontRetreatLanding() {
   return (
     <div className="min-h-screen bg-white">
@@ -90,11 +92,20 @@ export default function BayfrontRetreatLanding() {
           >
             Request to Book →
           </a>
-          <div>
-            <a href="/availability" className="text-sm text-emerald-600 hover:underline">
-              View availability calendar
-            </a>
+          <div className="text-sm text-slate-500">
+            Scroll down to see the availability calendar and select your dates.
           </div>
+        </div>
+      </div>
+
+      {/* Availability Calendar - Book from here */}
+      <div className="border-t bg-white">
+        <div className="max-w-5xl mx-auto px-6 py-16">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-semibold tracking-tight">Check Availability &amp; Request Your Dates</h2>
+            <p className="text-slate-600 mt-2">Select dates on the calendar below. If available, you can start your booking request directly.</p>
+          </div>
+          <AvailabilityCalendar />
         </div>
       </div>
 

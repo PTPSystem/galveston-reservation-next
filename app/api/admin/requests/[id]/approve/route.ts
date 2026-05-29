@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendQuoteEmail } from '@/lib/email';
+import { getEmailRecipients } from '@/lib/email-settings';
 
 export async function POST(
   request: NextRequest,
@@ -18,7 +20,22 @@ export async function POST(
     },
   });
 
-  // TODO: Send email with quote to guest
+  // Send quote email to guest
+  if (updated.approvalToken) {
+    await sendQuoteEmail({
+      to: updated.guestEmail,
+      guestName: updated.guestName,
+      startDate: updated.startDate.toISOString(),
+      endDate: updated.endDate.toISOString(),
+      pricing: body.pricing,
+      approvalToken: updated.approvalToken,
+    });
+  }
+
+  // Notify internal recipients (Property Manager + Owner)
+  const recipients = await getEmailRecipients();
+  console.log(`[Admin] Booking #${requestId} confirmed. Notifying: ${recipients.propertyManagerEmail}, ${recipients.ownerEmail}`);
+
   // TODO: Create calendar event if needed
 
   return NextResponse.json({ success: true, request: updated });

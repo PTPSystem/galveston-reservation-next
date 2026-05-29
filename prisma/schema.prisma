@@ -123,6 +123,15 @@ model SyncLog {
   @@map("sync_logs")
 }
 
+model EmailSetting {
+  id                    Int      @id @default(autoincrement())
+  propertyManagerEmail  String   @map("property_manager_email")
+  ownerEmail            String   @map("owner_email")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("email_settings")
+}
+
 enum BookingStatus {
   PENDING
   REVIEWING

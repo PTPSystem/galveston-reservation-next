@@ -1,13 +1,14 @@
 import prisma from '@/lib/prisma';
-import { seedDefaultHolidaysIfEmpty } from '@/lib/seed-holidays';
+import { seedDefaultHolidaysIfEmpty, seedDefaultEmailSettingsIfEmpty } from '@/lib/seed-holidays';
 import HolidayCalendarClient from './HolidayCalendarClient';
 
 // Force dynamic rendering so this page doesn't require DB access at build time
 export const dynamic = 'force-dynamic';
 
 export default async function AdminHolidaysPage() {
-  // Automatically seed default holidays if the table is empty
-  const wasSeeded = await seedDefaultHolidaysIfEmpty();
+  // Automatically seed default holidays and email settings if empty
+  await seedDefaultHolidaysIfEmpty();
+  await seedDefaultEmailSettingsIfEmpty();
 
   const rawHolidays = await prisma.holidayPeriod.findMany({
     orderBy: { startDate: 'asc' },
