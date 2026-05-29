@@ -162,7 +162,7 @@ export default function RequestToBook() {
         {/* Close button */}
         <a 
           href="/" 
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-2xl leading-none"
+          className="absolute top-4 right-4 text-slate-700 hover:text-slate-900 text-3xl leading-none p-1"
           aria-label="Close booking window"
         >
           <i className="fa-solid fa-times"></i>
