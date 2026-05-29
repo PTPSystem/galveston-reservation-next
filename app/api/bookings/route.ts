@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { bookingRequestSchema, validateBookingDates } from '@/lib/validations/booking';
 import { randomBytes } from 'crypto';
-import { sendBookingConfirmationEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendInternalNewRequestNotification } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
 
 export async function POST(request: NextRequest) {
@@ -70,9 +70,20 @@ export async function POST(request: NextRequest) {
 
     // Notify internal recipients (Property Manager + Owner)
     const recipients = await getEmailRecipients();
-    console.log(`[Booking] New request #${bookingRequest.id} from ${data.guestEmail}. Notifying: ${recipients.propertyManagerEmail}, ${recipients.ownerEmail}`);
+    const internalEmails = [recipients.propertyManagerEmail, recipients.ownerEmail].filter(Boolean);
 
-    // TODO: Send proper email notification to admin with approval link (instead of just console.log)
+    if (internalEmails.length > 0) {
+      await sendInternalNewRequestNotification({
+        recipients: internalEmails,
+        guestName: data.guestName,
+        guestEmail: data.guestEmail,
+        startDate: data.startDate.toISOString().split('T')[0],
+        endDate: data.endDate.toISOString().split('T')[0],
+        numGuests: data.numGuests,
+        bookingId: bookingRequest.id,
+        approvalToken,
+      });
+    }
 
     return NextResponse.json(
       {

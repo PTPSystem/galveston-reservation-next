@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendQuoteEmail } from '@/lib/email';
+import { sendQuoteEmail, sendInternalBookingConfirmedEmail } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
 
 export async function POST(
@@ -34,7 +34,19 @@ export async function POST(
 
   // Notify internal recipients (Property Manager + Owner)
   const recipients = await getEmailRecipients();
-  console.log(`[Admin] Booking #${requestId} confirmed. Notifying: ${recipients.propertyManagerEmail}, ${recipients.ownerEmail}`);
+  const internalEmails = [recipients.propertyManagerEmail, recipients.ownerEmail].filter(Boolean);
+
+  if (internalEmails.length > 0) {
+    await sendInternalBookingConfirmedEmail({
+      recipients: internalEmails,
+      guestName: updated.guestName,
+      guestEmail: updated.guestEmail,
+      startDate: updated.startDate.toISOString(),
+      endDate: updated.endDate.toISOString(),
+      pricing: body.pricing,
+      bookingId: updated.id,
+    });
+  }
 
   // TODO: Create calendar event if needed
 

@@ -133,10 +133,11 @@ export async function sendQuoteEmail({
   });
 
   const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Bayfront Retreat <bookings@yourdomain.com>', // TODO: Update with real domain
+      from: `Bayfront Retreat <${fromEmail}>`,
       to: [to],
       subject: `Your Quote for Bayfront Retreat – ${formattedStart} to ${formattedEnd}`,
       html: `
@@ -186,6 +187,177 @@ export async function sendQuoteEmail({
     return { success: true, id: data?.id };
   } catch (err) {
     console.error('[Email] Exception sending quote:', err);
+    return { success: false, error: err };
+  }
+}
+
+interface SendInternalNewRequestParams {
+  recipients: string[];
+  guestName: string;
+  guestEmail: string;
+  startDate: string;
+  endDate: string;
+  numGuests: number;
+  bookingId: number;
+  approvalToken: string;
+}
+
+/**
+ * Sends a notification to internal recipients when a new booking request is submitted.
+ */
+export async function sendInternalNewRequestNotification({
+  recipients,
+  guestName,
+  guestEmail,
+  startDate,
+  endDate,
+  numGuests,
+  bookingId,
+  approvalToken,
+}: SendInternalNewRequestParams) {
+  if (!resend) {
+    console.log('[Email] Resend not configured - skipping internal new request notification');
+    return { success: false, skipped: true };
+  }
+
+  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Bayfront Retreat <${fromEmail}>`,
+      to: recipients,
+      subject: `New Booking Request: ${guestName} — ${formattedStart} to ${formattedEnd}`,
+      html: `
+        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">New Booking Request</h1>
+
+          <p><strong>Guest:</strong> ${guestName} (${guestEmail})</p>
+          <p><strong>Dates:</strong> ${formattedStart} → ${formattedEnd}</p>
+          <p><strong>Guests:</strong> ${numGuests}</p>
+          <p><strong>Request ID:</strong> #${bookingId}</p>
+
+          <p style="margin-top: 24px;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/requests/${bookingId}" 
+               style="color: #059669; text-decoration: underline; font-weight: 600;">
+              Review & Quote in Admin
+            </a>
+          </p>
+
+          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
+            — Bayfront Retreat System
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('[Email] Failed to send internal new request notification:', error);
+      return { success: false, error };
+    }
+
+    console.log('[Email] Internal new request notification sent:', data?.id);
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('[Email] Exception sending internal new request notification:', err);
+    return { success: false, error: err };
+  }
+}
+
+interface SendInternalConfirmationParams {
+  recipients: string[];
+  guestName: string;
+  guestEmail: string;
+  startDate: string;
+  endDate: string;
+  pricing: any;
+  bookingId: number;
+}
+
+/**
+ * Sends an internal notification to Property Manager and/or Owner
+ * when a booking has been confirmed with a quote.
+ */
+export async function sendInternalBookingConfirmedEmail({
+  recipients,
+  guestName,
+  guestEmail,
+  startDate,
+  endDate,
+  pricing,
+  bookingId,
+}: SendInternalConfirmationParams) {
+  if (!resend) {
+    console.log('[Email] Resend not configured - skipping internal notification');
+    return { success: false, skipped: true };
+  }
+
+  if (!recipients || recipients.length === 0) {
+    console.log('[Email] No internal recipients configured');
+    return { success: false, skipped: true };
+  }
+
+  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
+
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Bayfront Retreat <${fromEmail}>`,
+      to: recipients,
+      subject: `Booking Confirmed: ${guestName} — ${formattedStart} to ${formattedEnd}`,
+      html: `
+        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Booking Confirmed</h1>
+
+          <p><strong>Guest:</strong> ${guestName} (${guestEmail})</p>
+          <p><strong>Dates:</strong> ${formattedStart} → ${formattedEnd}</p>
+          <p><strong>Total Quote:</strong> $${total}</p>
+          <p><strong>Booking ID:</strong> #${bookingId}</p>
+
+          <p style="margin-top: 24px;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/requests/${bookingId}" 
+               style="color: #059669; text-decoration: underline;">
+              View in Admin Dashboard
+            </a>
+          </p>
+
+          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
+            — Bayfront Retreat System
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('[Email] Failed to send internal confirmation:', error);
+      return { success: false, error };
+    }
+
+    console.log('[Email] Internal confirmation sent:', data?.id);
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('[Email] Exception sending internal confirmation:', err);
     return { success: false, error: err };
   }
 }
