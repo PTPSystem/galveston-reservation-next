@@ -5,16 +5,16 @@ export default function BayfrontRetreatLanding() {
       <div className="relative bg-slate-900 text-white">
         <div className="max-w-5xl mx-auto px-6 py-20">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm mb-4">
+            <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm mb-4 text-white/90">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas
             </div>
             
-            <h1 className="text-6xl font-semibold tracking-tighter mb-6">
+            <h1 className="text-6xl font-semibold tracking-tighter mb-6 text-white">
               Bayfront Retreat
             </h1>
             
-            <p className="text-2xl text-slate-100 mb-8">
+            <p className="text-2xl text-slate-200 mb-8">
               Private waterfront home on Galveston Bay.
             </p>
 
@@ -27,7 +27,7 @@ export default function BayfrontRetreatLanding() {
               </a>
               <a 
                 href="#how-it-works" 
-                className="inline-flex items-center justify-center px-8 py-4 border border-white/30 hover:bg-white/10 rounded-2xl font-semibold text-lg transition-colors"
+                className="inline-flex items-center justify-center px-8 py-4 border border-white/30 text-white hover:bg-white/10 rounded-2xl font-semibold text-lg transition-colors"
               >
                 How It Works
               </a>
