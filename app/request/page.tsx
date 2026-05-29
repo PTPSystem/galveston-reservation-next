@@ -15,6 +15,10 @@ export default function RequestToBook() {
   const [guestDropdownOpen, setGuestDropdownOpen] = useState(false);
   const guestDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Availability data
+  const [unavailablePeriods, setUnavailablePeriods] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
+
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStart = e.target.value;
     setStartDate(newStart);
@@ -36,6 +40,11 @@ export default function RequestToBook() {
     setEndDate(e.target.value);
   };
 
+  // Check if selected dates overlap with unavailable periods
+  const hasDateConflict = startDate && endDate && unavailablePeriods.some(period => {
+    return !(endDate < period.startDate || startDate > period.endDate);
+  });
+
   // Close guest dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,6 +55,25 @@ export default function RequestToBook() {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch unavailable dates (CONFIRMED bookings)
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const res = await fetch('/api/availability');
+        if (res.ok) {
+          const data = await res.json();
+          setUnavailablePeriods(data.unavailable || []);
+        }
+      } catch (error) {
+        console.error('Failed to load availability', error);
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    fetchAvailability();
   }, []);
 
   // Simple client-side validation before sending to server
@@ -167,6 +195,24 @@ export default function RequestToBook() {
         >
           <i className="fa-solid fa-times"></i>
         </a>
+        {/* Availability Notice */}
+        {!loadingAvailability && unavailablePeriods.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm">
+            <div className="font-medium text-amber-800 mb-2">Currently unavailable dates:</div>
+            <ul className="space-y-1 text-amber-700">
+              {unavailablePeriods.map((period, index) => (
+                <li key={index}>
+                  {new Date(period.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
+                  {new Date(period.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </li>
+              ))}
+            </ul>
+            <p className="text-amber-600 mt-2 text-xs">
+              These dates are already confirmed. Please choose different dates if possible.
+            </p>
+          </div>
+        )}
+
         <div className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-800 mb-1.5">Check-in Date</label>
@@ -194,6 +240,12 @@ export default function RequestToBook() {
             {errors.endDate && <p className="text-sm text-red-600 mt-1">{errors.endDate}</p>}
           </div>
         </div>
+
+        {hasDateConflict && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            ⚠️ The dates you selected overlap with already confirmed bookings. Please choose different dates.
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-slate-800 mb-1.5">Number of Guests</label>
