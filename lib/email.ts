@@ -242,22 +242,33 @@ export async function sendInternalNewRequestNotification({
       to: recipients,
       subject: `New Booking Request: ${guestName} — ${formattedStart} to ${formattedEnd}`,
       html: `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">New Booking Request</h1>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 28px 24px; color: #1f2937; background-color: #ffffff;">
+          <h1 style="font-size: 20px; font-weight: 600; margin: 0 0 16px 0; color: #111827;">
+            New Booking Request
+          </h1>
 
-          <p><strong>Guest:</strong> ${guestName} (${guestEmail})</p>
-          <p><strong>Dates:</strong> ${formattedStart} → ${formattedEnd}</p>
-          <p><strong>Guests:</strong> ${numGuests}</p>
-          <p><strong>Request ID:</strong> #${bookingId}</p>
+          <div style="margin-bottom: 20px;">
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Guest</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px; color: #111827;">${guestName} (${guestEmail})</p>
 
-          <p style="margin-top: 24px;">
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Dates</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px; color: #111827;">${formattedStart} → ${formattedEnd}</p>
+
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Guests</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px; color: #111827;">${numGuests}</p>
+
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Request ID</p>
+            <p style="margin: 0; font-size: 15px; color: #111827;">#${bookingId}</p>
+          </div>
+
+          <p style="margin: 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/requests/${bookingId}" 
-               style="color: #059669; text-decoration: underline; font-weight: 600;">
-              Review & Quote in Admin
+               style="color: #0f766e; text-decoration: underline; font-weight: 500;">
+              Review &amp; Quote in Admin
             </a>
           </p>
 
-          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
+          <p style="font-size: 13px; color: #9ca3af; margin-top: 28px;">
             — Bayfront Retreat System
           </p>
         </div>
@@ -331,22 +342,33 @@ export async function sendInternalBookingConfirmedEmail({
       to: recipients,
       subject: `Booking Confirmed: ${guestName} — ${formattedStart} to ${formattedEnd}`,
       html: `
-        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">Booking Confirmed</h1>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 28px 24px; color: #1f2937; background-color: #ffffff;">
+          <h1 style="font-size: 20px; font-weight: 600; margin: 0 0 16px 0; color: #111827;">
+            Booking Confirmed
+          </h1>
 
-          <p><strong>Guest:</strong> ${guestName} (${guestEmail})</p>
-          <p><strong>Dates:</strong> ${formattedStart} → ${formattedEnd}</p>
-          <p><strong>Total Quote:</strong> $${total}</p>
-          <p><strong>Booking ID:</strong> #${bookingId}</p>
+          <div style="margin-bottom: 20px;">
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Guest</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px; color: #111827;">${guestName} (${guestEmail})</p>
 
-          <p style="margin-top: 24px;">
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Dates</p>
+            <p style="margin: 0 0 12px 0; font-size: 15px; color: #111827;">${formattedStart} → ${formattedEnd}</p>
+
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Total Quote</p>
+            <p style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #111827;">$${total}</p>
+
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #6b7280;">Booking ID</p>
+            <p style="margin: 0; font-size: 15px; color: #111827;">#${bookingId}</p>
+          </div>
+
+          <p style="margin: 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/requests/${bookingId}" 
-               style="color: #059669; text-decoration: underline;">
+               style="color: #0f766e; text-decoration: underline; font-weight: 500;">
               View in Admin Dashboard
             </a>
           </p>
 
-          <p style="margin-top: 32px; font-size: 14px; color: #6b7280;">
+          <p style="font-size: 13px; color: #9ca3af; margin-top: 28px;">
             — Bayfront Retreat System
           </p>
         </div>
