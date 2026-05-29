@@ -1,6 +1,9 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 
+// Force dynamic rendering so this page doesn't try to fetch data at build time
+export const dynamic = 'force-dynamic';
+
 export default async function AdminRequestsPage() {
   const requests = await prisma.bookingRequest.findMany({
     orderBy: { createdAt: 'desc' },
