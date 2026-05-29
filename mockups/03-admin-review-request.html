@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Request • Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-slate-100">
+  <div class="max-w-5xl mx-auto py-8 px-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <a href="02-admin-requests-list.html" class="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1 mb-1">
+          <i class="fa-solid fa-arrow-left"></i> Back to Requests
+        </a>
+        <h1 class="text-2xl font-semibold">Review Booking Request</h1>
+      </div>
+      <div class="text-right">
+        <div class="text-sm text-slate-500">Submitted 2 hours ago</div>
+        <div class="text-emerald-600 font-medium">Sarah Thompson</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Left Column: Guest Info -->
+      <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border p-6">
+        <h3 class="font-semibold mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-user text-slate-400"></i> Guest Information
+        </h3>
+        
+        <div class="space-y-4 text-sm">
+          <div>
+            <div class="text-slate-500">Name</div>
+            <div class="font-medium">Sarah Thompson</div>
+          </div>
+          <div>
+            <div class="text-slate-500">Email</div>
+            <div class="font-medium">sarah.thompson@email.com</div>
+          </div>
+          <div>
+            <div class="text-slate-500">Phone</div>
+            <div class="font-medium">(713) 555-0192</div>
+          </div>
+          <div>
+            <div class="text-slate-500">Guests</div>
+            <div class="font-medium">4 guests</div>
+          </div>
+          <div>
+            <div class="text-slate-500">Special Requests</div>
+            <div class="text-sm bg-slate-50 p-3 rounded-lg mt-1">
+              We have a small dog (well-trained, 25 lbs). Would love to bring her if possible.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t">
+          <div class="text-xs font-medium text-slate-500 mb-2">REQUESTED DATES</div>
+          <div class="flex items-center gap-3">
+            <div>
+              <div class="text-sm text-slate-500">Check-in</div>
+              <div class="font-semibold">Friday, July 10, 2026</div>
+              <div class="text-xs text-slate-500">After 3:00 PM</div>
+            </div>
+            <div class="text-slate-300">→</div>
+            <div>
+              <div class="text-sm text-slate-500">Check-out</div>
+              <div class="font-semibold">Friday, July 17, 2026</div>
+              <div class="text-xs text-slate-500">Before 11:00 AM</div>
+            </div>
+          </div>
+          <div class="mt-1 text-emerald-600 text-sm font-medium">7 nights</div>
+        </div>
+      </div>
+
+      <!-- Right Column: Pricing -->
+      <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border p-6">
+        <h3 class="font-semibold mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-calculator text-slate-400"></i> Pricing & Fees
+        </h3>
+
+        <!-- Calculated Base Rate -->
+        <div class="mb-5">
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-slate-600">Calculated Base Rate (7 nights)</span>
+            <span class="font-semibold">$4,100.00</span>
+          </div>
+          <div class="text-xs text-slate-500">5 weekday nights × $500 + 2 weekend nights × $650 = $4,100</div>
+        </div>
+
+        <div class="border-t pt-4 space-y-3 text-sm">
+          <!-- Guest Visible Fees -->
+          <div class="flex justify-between">
+            <span class="text-slate-700">Nightly Fees (after discount)</span>
+            <span class="font-medium">$3,750.00</span>
+          </div>
+          <div class="flex justify-between text-emerald-600">
+            <span>Weekly Stay Discount (7 nights)</span>
+            <span class="font-medium">− $350.00</span>
+          </div>
+          
+          <div class="border-t my-2"></div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-700">Jamaica Beach Hotel Tax (9%)</span>
+            <span class="font-medium">$337.50</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-700">Texas State Hotel Tax (6%)</span>
+            <span class="font-medium">$225.00</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-700">Cleaning Fee</span>
+            <span class="font-medium">$300.00</span>
+          </div>
+
+          <!-- Total Guest Price -->
+          <div class="pt-3 border-t flex justify-between items-baseline">
+            <span class="font-semibold text-lg">Total Price to Guest</span>
+            <span class="font-bold text-2xl text-emerald-600">$4,262.50</span>
+          </div>
+        </div>
+
+        <!-- Internal Management Fee -->
+        <div class="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <div class="text-sm font-medium text-amber-800">Internal Management Fee (22%)</div>
+              <div class="text-xs text-amber-600">Not shown to guest • Goes to property manager</div>
+            </div>
+            <div class="text-right">
+              <div class="font-semibold text-amber-900">$825.00</div>
+              <div class="text-xs text-amber-700">Owner receives: $2,925.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Controls -->
+        <div class="mt-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Adjust Base Rate (optional)</label>
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <span class="absolute left-4 top-3 text-slate-400">$</span>
+                <input type="number" value="3750" 
+                       class="w-full border border-slate-300 rounded-lg pl-8 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <button class="px-4 py-2.5 text-sm border rounded-lg hover:bg-slate-50">Recalculate</button>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Leave blank to use system calculation.</div>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button onclick="approveBooking()"
+                    class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+              <i class="fa-solid fa-check"></i>
+              <span>Approve with Pricing</span>
+            </button>
+            <button onclick="rejectBooking()"
+                    class="px-6 bg-white border hover:bg-red-50 text-red-600 border-red-200 py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+              <i class="fa-solid fa-times"></i>
+              <span>Reject</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function approveBooking() {
+      if (confirm("Approve this booking and send pricing to the guest?")) {
+        alert("Booking approved! (This is a mockup)");
+        window.location.href = "02-admin-requests-list.html";
+      }
+    }
+    function rejectBooking() {
+      const reason = prompt("Reason for rejection (optional):");
+      if (reason !== null) {
+        alert("Booking rejected. Guest has been notified. (Mockup)");
+        window.location.href = "02-admin-requests-list.html";
+      }
+    }
+  </script>
+</body>
+</html>

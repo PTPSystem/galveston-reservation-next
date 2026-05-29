@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Holiday & Peak Periods • Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-slate-100">
+  <div class="max-w-6xl mx-auto py-8 px-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <a href="02-admin-requests-list.html" class="text-emerald-600 hover:text-emerald-700 text-sm flex items-center gap-1 mb-1">
+          <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+        <h1 class="text-2xl font-semibold">Holiday & Peak Period Calendar</h1>
+        <p class="text-slate-500 text-sm">These dates will automatically use the $700 Holiday rate and override weekend pricing.</p>
+      </div>
+      <button onclick="showAddModal()"
+              class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium">
+        <i class="fa-solid fa-plus"></i>
+        <span>Add Holiday / Peak Period</span>
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-2xl p-5 border">
+        <div class="text-sm text-slate-500">Total Defined Periods (2026)</div>
+        <div class="text-3xl font-semibold mt-1" id="total-periods">8</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border">
+        <div class="text-sm text-slate-500">Total Holiday Nights (2026)</div>
+        <div class="text-3xl font-semibold mt-1 text-orange-600" id="total-nights">47</div>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border">
+        <div class="text-sm text-slate-500">Next Upcoming Period</div>
+        <div class="mt-1">
+          <div class="font-semibold">Spring Break 2026</div>
+          <div class="text-sm text-slate-500">Mar 7 – Mar 22, 2026</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="bg-slate-50 text-sm text-slate-600">
+            <th class="px-6 py-4 text-left font-medium">Period Name</th>
+            <th class="px-6 py-4 text-left font-medium">Start Date</th>
+            <th class="px-6 py-4 text-left font-medium">End Date</th>
+            <th class="px-6 py-4 text-center font-medium">Nights</th>
+            <th class="px-6 py-4 text-center font-medium">Rate</th>
+            <th class="px-6 py-4 text-left font-medium">Notes</th>
+            <th class="px-6 py-4 w-20"></th>
+          </tr>
+        </thead>
+        <tbody id="holiday-table" class="divide-y text-sm">
+          <!-- Populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 text-xs text-slate-500 flex items-center gap-2">
+      <i class="fa-solid fa-info-circle"></i>
+      <span>Dates listed are the nights that will be charged at the Holiday rate ($700). These override both weekday and weekend pricing.</span>
+    </div>
+  </div>
+
+  <!-- Add / Edit Modal -->
+  <div id="holiday-modal" onclick="if (event.target.id === 'holiday-modal') closeModal()" 
+       class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div onclick="event.stopImmediatePropagation()" 
+         class="bg-white w-full max-w-lg mx-4 rounded-2xl shadow-xl">
+      
+      <div class="px-6 py-4 border-b flex justify-between items-center">
+        <h3 id="modal-title" class="font-semibold text-lg">Add Holiday / Peak Period</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Period Name</label>
+          <input type="text" id="period-name" placeholder="e.g. Spring Break 2026"
+                 class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Start Date (first night)</label>
+            <input type="date" id="start-date"
+                   class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">End Date (last night)</label>
+            <input type="date" id="end-date"
+                   class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Rate Override</label>
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <input type="number" id="rate-override" value="700" step="50"
+                     class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="text-sm text-slate-500">/ night</div>
+          </div>
+          <div class="text-xs text-slate-500 mt-1">Default is $700. You can override for special periods.</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+          <textarea id="notes" rows="2" placeholder="e.g. Local Spring Break, high demand expected"
+                    class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+      </div>
+
+      <div class="px-6 py-4 border-t bg-slate-50 rounded-b-2xl flex justify-between items-center">
+        <button id="delete-btn" onclick="deleteCurrentPeriod()" 
+                class="hidden px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium flex items-center gap-2">
+          <i class="fa-solid fa-trash"></i> Delete Period
+        </button>
+        
+        <div class="flex gap-3 ml-auto">
+          <button onclick="closeModal()" 
+                  class="px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+          <button onclick="savePeriod()" 
+                  class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg">
+            <span id="save-button-text">Add Period</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let holidays = [
+      { id: 1, name: "Spring Break 2026", start: "2026-03-07", end: "2026-03-22", rate: 700, notes: "Major local event - very high demand" },
+      { id: 2, name: "Memorial Day Weekend", start: "2026-05-22", end: "2026-05-25", rate: 700, notes: "" },
+      { id: 3, name: "July 4th Week", start: "2026-06-27", end: "2026-07-05", rate: 700, notes: "Independence Day celebrations" },
+      { id: 4, name: "Labor Day Weekend", start: "2026-08-28", end: "2026-08-31", rate: 700, notes: "" },
+      { id: 5, name: "Thanksgiving Week", start: "2026-11-21", end: "2026-11-29", rate: 700, notes: "Includes Black Friday" },
+      { id: 6, name: "Christmas & New Year", start: "2026-12-19", end: "2027-01-03", rate: 700, notes: "Peak winter holiday season" },
+      { id: 7, name: "Galveston Mardi Gras", start: "2026-02-13", end: "2026-02-17", rate: 650, notes: "Local event - elevated demand" },
+      { id: 8, name: "Easter Weekend", start: "2026-04-03", end: "2026-04-06", rate: 700, notes: "" }
+    ];
+
+    let editingId = null;
+
+    function calculateNights(start, end) {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      return Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('holiday-table');
+      tbody.innerHTML = '';
+
+      // Sort by start date
+      const sorted = [...holidays].sort((a, b) => new Date(a.start) - new Date(b.start));
+
+      sorted.forEach(period => {
+        const nights = calculateNights(period.start, period.end);
+        const startDate = new Date(period.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const endDate = new Date(period.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50';
+        row.innerHTML = `
+          <td class="px-6 py-4 font-medium">${period.name}</td>
+          <td class="px-6 py-4 text-slate-600">${startDate}</td>
+          <td class="px-6 py-4 text-slate-600">${endDate}</td>
+          <td class="px-6 py-4 text-center font-medium">${nights}</td>
+          <td class="px-6 py-4 text-center">
+            <span class="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              $${period.rate}
+            </span>
+          </td>
+          <td class="px-6 py-4 text-slate-500 text-xs max-w-[220px] truncate">${period.notes || '-'}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-1 justify-end">
+              <button onclick="editPeriod(${period.id})" 
+                      class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg">
+                <i class="fa-solid fa-edit"></i>
+              </button>
+              <button onclick="deletePeriod(${period.id})" 
+                      class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      // Update stats
+      document.getElementById('total-periods').textContent = holidays.length;
+      const totalNights = holidays.reduce((sum, h) => sum + calculateNights(h.start, h.end), 0);
+      document.getElementById('total-nights').textContent = totalNights;
+    }
+
+    function showAddModal() {
+      editingId = null;
+      document.getElementById('modal-title').textContent = 'Add Holiday / Peak Period';
+      document.getElementById('save-button-text').textContent = 'Add Period';
+      document.getElementById('delete-btn').classList.add('hidden');
+
+      // Clear form
+      document.getElementById('period-name').value = '';
+      document.getElementById('start-date').value = '';
+      document.getElementById('end-date').value = '';
+      document.getElementById('rate-override').value = '700';
+      document.getElementById('notes').value = '';
+
+      document.getElementById('holiday-modal').classList.remove('hidden');
+      document.getElementById('holiday-modal').classList.add('flex');
+    }
+
+    function editPeriod(id) {
+      const period = holidays.find(h => h.id === id);
+      if (!period) return;
+
+      editingId = id;
+      document.getElementById('modal-title').textContent = 'Edit Holiday / Peak Period';
+      document.getElementById('save-button-text').textContent = 'Save Changes';
+      document.getElementById('delete-btn').classList.remove('hidden');
+
+      document.getElementById('period-name').value = period.name;
+      document.getElementById('start-date').value = period.start;
+      document.getElementById('end-date').value = period.end;
+      document.getElementById('rate-override').value = period.rate;
+      document.getElementById('notes').value = period.notes || '';
+
+      document.getElementById('holiday-modal').classList.remove('hidden');
+      document.getElementById('holiday-modal').classList.add('flex');
+    }
+
+    function savePeriod() {
+      const name = document.getElementById('period-name').value.trim();
+      const start = document.getElementById('start-date').value;
+      const end = document.getElementById('end-date').value;
+      const rate = parseInt(document.getElementById('rate-override').value);
+      const notes = document.getElementById('notes').value.trim();
+
+      if (!name || !start || !end) {
+        alert('Please fill in Name, Start Date, and End Date.');
+        return;
+      }
+
+      if (editingId) {
+        // Edit existing
+        const index = holidays.findIndex(h => h.id === editingId);
+        holidays[index] = {
+          ...holidays[index],
+          name,
+          start,
+          end,
+          rate,
+          notes
+        };
+      } else {
+        // Add new
+        const newId = Math.max(0, ...holidays.map(h => h.id)) + 1;
+        holidays.push({
+          id: newId,
+          name,
+          start,
+          end,
+          rate,
+          notes
+        });
+      }
+
+      closeModal();
+      renderTable();
+    }
+
+    function deletePeriod(id) {
+      if (!confirm('Are you sure you want to delete this holiday period?')) return;
+
+      holidays = holidays.filter(h => h.id !== id);
+      renderTable();
+    }
+
+    function deleteCurrentPeriod() {
+      if (!editingId) return;
+      if (!confirm('Delete this holiday period?')) return;
+
+      holidays = holidays.filter(h => h.id !== editingId);
+      closeModal();
+      renderTable();
+    }
+
+    function closeModal() {
+      document.getElementById('holiday-modal').classList.remove('flex');
+      document.getElementById('holiday-modal').classList.add('hidden');
+    }
+
+    // Initialize
+    function init() {
+      renderTable();
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

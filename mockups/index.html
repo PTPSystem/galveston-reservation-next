@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galveston Reservation - Mockups</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 py-12">
+  <div class="max-w-3xl mx-auto px-6">
+    <div class="text-center mb-10">
+      <h1 class="text-3xl font-semibold text-slate-900">Bayfront Retreat</h1>
+      <p class="text-slate-500 mt-2">HTML Mockups • Galveston Reservation System</p>
+    </div>
+
+    <div class="grid gap-4">
+      <a href="01-guest-request-form.html" 
+         class="block p-6 bg-white border rounded-2xl hover:shadow-md transition-shadow">
+        <div class="font-semibold text-lg">1. Guest Booking Request Form</div>
+        <div class="text-sm text-slate-500">What potential guests see when requesting dates</div>
+      </a>
+
+      <a href="02-admin-requests-list.html" 
+         class="block p-6 bg-white border rounded-2xl hover:shadow-md transition-shadow">
+        <div class="font-semibold text-lg">2. Admin - Booking Requests List</div>
+        <div class="text-sm text-slate-500">Manager dashboard showing pending requests</div>
+      </a>
+
+      <a href="03-admin-review-request.html" 
+         class="block p-6 bg-white border rounded-2xl hover:shadow-md transition-shadow">
+        <div class="font-semibold text-lg">3. Admin - Review & Approve with Pricing</div>
+        <div class="text-sm text-slate-500">Critical screen: Admin sets price and sees full breakdown (including internal 22% fee)</div>
+      </a>
+
+      <a href="04-admin-quote-price.html" 
+         class="block p-6 bg-white border rounded-2xl hover:shadow-md transition-shadow border-emerald-200">
+        <div class="font-semibold text-lg flex items-center gap-2">
+          4. Admin - Quote Price with Daily & Stay Adjustments
+          <span class="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">Recommended</span>
+        </div>
+        <div class="text-sm text-slate-500">Advanced pricing screen: Night-by-night adjustments + stay-level adjustments + full audit log with reasons</div>
+      </a>
+
+      <a href="05-admin-holiday-calendar.html" 
+         class="block p-6 bg-white border rounded-2xl hover:shadow-md transition-shadow">
+        <div class="font-semibold text-lg">5. Admin - Holiday & Peak Period Calendar</div>
+        <div class="text-sm text-slate-500">Manage vacation/holiday dates that trigger the $700 holiday rate. Pre-populated with common Galveston dates.</div>
+      </a>
+
+      <div class="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+        <strong>Real implementation started:</strong> See <code>app/admin/holidays</code> for the working version of the Holiday Calendar (using the new Prisma models).
+      </div>
+    </div>
+
+    <div class="text-center mt-8 text-xs text-slate-400">
+      These are static HTML mockups for discussion and design alignment.
+    </div>
+  </div>
+</body>
+</html>

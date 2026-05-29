@@ -1,0 +1,132 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Galveston Reservation System - Modern Stack
+// Next.js + Prisma + Neon + Vercel
+// ============================================
+
+model BookingRequest {
+  id                Int             @id @default(autoincrement())
+  guestName         String          @map("guest_name")
+  guestEmail        String          @map("guest_email")
+  guestPhone        String?         @map("guest_phone")
+  startDate         DateTime        @map("start_date")
+  endDate           DateTime        @map("end_date")
+  numGuests         Int             @default(1) @map("num_guests")
+  specialRequests   String?         @map("special_requests")
+  status            BookingStatus   @default(PENDING)
+  approvalToken     String?         @unique @map("approval_token")
+  rejectionReason   String?         @map("rejection_reason")
+
+  // Source of the booking/request
+  source            BookingSource   @default(DIRECT)
+
+  // Pricing (stored as JSON for flexibility)
+  pricing           Json?           // See BookingPricing type in code
+
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  approvedAt        DateTime?       @map("approved_at")
+  rejectedAt        DateTime?       @map("rejected_at")
+
+  // Google Calendar integration (legacy)
+  googleEventId     String?         @map("google_event_id")
+
+  // Relations
+  calendarEvent     CalendarEvent?
+  adjustments       PricingAdjustment[]
+
+  @@map("booking_requests")
+}
+
+model PricingAdjustment {
+  id                Int      @id @default(autoincrement())
+  bookingRequestId  Int      @map("booking_request_id")
+
+  adjustmentType    String   // "daily" | "stay"
+  amount            Float
+  reason            String
+  appliedBy         String   // admin name or id
+
+  createdAt         DateTime @default(now())
+
+  bookingRequest    BookingRequest @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("pricing_adjustments")
+}
+
+model HolidayPeriod {
+  id          Int      @id @default(autoincrement())
+  name        String
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  rate        Int      @default(700) // Holiday rate override
+  notes       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([startDate, endDate])
+  @@map("holiday_periods")
+}
+
+enum BookingSource {
+  DIRECT
+  VRBO
+}
+
+model CalendarEvent {
+  id                Int      @id @default(autoincrement())
+  googleEventId     String   @unique @map("google_event_id")
+  summary           String?
+  description       String?
+  startDatetime     DateTime @map("start_datetime")
+  endDatetime       DateTime @map("end_datetime")
+  status            String?  // confirmed, tentative, cancelled
+  source            String   @default("google") // google | external | manual
+
+  bookingRequestId  Int?     @unique @map("booking_request_id")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  lastSynced        DateTime @default(now()) @map("last_synced")
+
+  bookingRequest    BookingRequest? @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("calendar_events")
+}
+
+model SyncLog {
+  id                  Int      @id @default(autoincrement())
+  syncType            String   @map("sync_type") // calendar_sync | external_check
+  status              String   // success | error | warning
+  eventsProcessed     Int      @default(0) @map("events_processed")
+  eventsAdded         Int      @default(0) @map("events_added")
+  eventsUpdated       Int      @default(0) @map("events_updated")
+  eventsRemoved       Int      @default(0) @map("events_removed")
+  discrepanciesFound  Int      @default(0) @map("discrepancies_found")
+  message             String?
+  errorDetails        String?  @map("error_details")
+  startedAt           DateTime @map("started_at")
+  completedAt         DateTime @default(now()) @map("completed_at")
+
+  @@map("sync_logs")
+}
+
+enum BookingStatus {
+  PENDING
+  REVIEWING
+  REJECTED
+  CONFIRMED
+  CANCELLED
+}

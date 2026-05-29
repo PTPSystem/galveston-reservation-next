@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Price • Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .adjustment-row {
+      transition: background-color 0.2s;
+    }
+    .adjustment-row:hover {
+      background-color: #f8fafc;
+    }
+    .log-entry {
+      font-size: 0.75rem;
+      line-height: 1.25rem;
+    }
+  </style>
+</head>
+<body class="bg-slate-100">
+  <div class="max-w-6xl mx-auto py-8 px-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <a href="02-admin-requests-list.html" class="text-emerald-600 hover:text-emerald-700 text-sm flex items-center gap-1">
+          <i class="fa-solid fa-arrow-left"></i> Back to Requests
+        </a>
+        <h1 class="text-2xl font-semibold mt-1">Quote Price & Approve</h1>
+        <div class="text-slate-500">Sarah Thompson • Jul 10 – Jul 17, 2026 (7 nights)</div>
+      </div>
+      <div class="text-right text-sm">
+        <div class="font-medium">Request #BR-2026-0142</div>
+        <div class="text-emerald-600">Needs Pricing</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+      
+      <!-- Main Pricing Table -->
+      <div class="xl:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
+          <div class="font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-emerald-600"></i>
+            Night-by-Night Pricing
+          </div>
+          <div class="text-sm text-slate-500">Click any row to adjust</div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th class="px-6 py-3 text-left font-medium">Date</th>
+                <th class="px-4 py-3 text-left font-medium">Night Type</th>
+                <th class="px-4 py-3 text-right font-medium">Base Rate</th>
+                <th class="px-4 py-3 text-right font-medium">Adjustment</th>
+                <th class="px-4 py-3 text-right font-medium">Final Night</th>
+                <th class="px-4 py-3 w-8"></th>
+              </tr>
+            </thead>
+            <tbody id="nights-table" class="divide-y">
+              <!-- Populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Quick Adjustments -->
+        <div class="p-6 border-t bg-slate-50">
+          <div class="font-medium text-sm mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-magic"></i> Quick Stay Adjustments
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="applyStayAdjustment(-200, 'Loyalty discount - returning guest')"
+                    class="px-3 py-1.5 text-sm bg-white border hover:bg-emerald-50 rounded-lg flex items-center gap-2">
+              <i class="fa-solid fa-minus text-emerald-600"></i> -$200 Loyalty
+            </button>
+            <button onclick="applyStayAdjustment(-350, '7-night weekly discount (auto-applied)')"
+                    class="px-3 py-1.5 text-sm bg-white border hover:bg-emerald-50 rounded-lg flex items-center gap-2">
+              <i class="fa-solid fa-minus text-emerald-600"></i> -$350 Weekly
+            </button>
+            <button onclick="applyStayAdjustment(150, 'Peak demand - holiday weekend')"
+                    class="px-3 py-1.5 text-sm bg-white border hover:bg-emerald-50 rounded-lg flex items-center gap-2">
+              <i class="fa-solid fa-plus text-emerald-600"></i> +$150 Peak
+            </button>
+            <button onclick="showCustomAdjustmentModal()"
+                    class="px-3 py-1.5 text-sm bg-white border hover:bg-slate-100 rounded-lg flex items-center gap-2">
+              <i class="fa-solid fa-edit"></i> Custom Adjustment
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar: Summary + Actions -->
+      <div class="xl:col-span-4 space-y-6">
+        
+        <!-- Guest Price Summary -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6">
+          <h3 class="font-semibold mb-4">Guest Price Summary</h3>
+          
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-slate-600">Base Nightly Total</span>
+              <span id="base-total" class="font-medium">$3,750.00</span>
+            </div>
+            <div class="flex justify-between text-emerald-600">
+              <span>Weekly Discount</span>
+              <span id="weekly-discount" class="font-medium">-$350.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Jamaica Beach Tax (9%)</span>
+              <span id="local-tax" class="font-medium">$306.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Texas State Tax (6%)</span>
+              <span id="state-tax" class="font-medium">$204.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600">Cleaning Fee</span>
+              <span class="font-medium">$300.00</span>
+            </div>
+            
+            <div class="pt-3 border-t flex justify-between items-baseline">
+              <span class="font-semibold text-lg">Total to Guest</span>
+              <span id="total-guest" class="font-bold text-2xl text-emerald-600">$4,210.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Internal Breakdown -->
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+          <h3 class="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-handshake"></i> Internal Split (Not shown to guest)
+          </h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-amber-700">Management Fee (22%)</span>
+              <span id="management-fee" class="font-semibold text-amber-900">$825.00</span>
+            </div>
+            <div class="flex justify-between font-medium">
+              <span class="text-amber-800">Owner Proceeds</span>
+              <span id="owner-proceeds" class="text-amber-900">$3,385.00</span>
+            </div>
+          </div>
+          <div class="text-[10px] text-amber-600 mt-3">22% of adjusted base rate goes to manager</div>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-3">
+          <button onclick="approveWithCurrentPricing()"
+                  class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2">
+            <i class="fa-solid fa-check"></i>
+            Approve & Send Quote to Guest
+          </button>
+          
+          <button onclick="saveDraft()"
+                  class="w-full py-3 bg-white border hover:bg-slate-50 text-slate-700 font-medium rounded-xl">
+            Save as Draft
+          </button>
+        </div>
+      </div>
+
+      <!-- Change Log -->
+      <div class="xl:col-span-12 bg-white rounded-2xl shadow-sm border p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-history text-slate-400"></i> Pricing Change Log
+          </h3>
+          <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">Audit Trail</span>
+        </div>
+        
+        <div id="change-log" class="space-y-2 max-h-64 overflow-auto text-sm">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Adjustment Modal -->
+  <div id="adjustment-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl w-full max-w-md mx-4">
+      <div class="p-6">
+        <h3 class="font-semibold text-lg mb-4">Apply Custom Adjustment</h3>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Adjustment Type</label>
+            <select id="adjustment-type" class="w-full border rounded-lg px-3 py-2">
+              <option value="daily">Daily Adjustment (per night)</option>
+              <option value="stay">Stay Adjustment (total)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Amount</label>
+            <div class="relative">
+              <span class="absolute left-3 top-2.5 text-slate-400">$</span>
+              <input type="number" id="adjustment-amount" value="-150" 
+                     class="w-full border rounded-lg pl-8 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Reason (required for audit)</label>
+            <textarea id="adjustment-reason" rows="2" placeholder="e.g. Early bird discount, damage waiver, etc."
+                      class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 px-6 py-4 border-t bg-slate-50 rounded-b-2xl">
+        <button onclick="closeModal()" 
+                class="px-4 py-2 text-sm font-medium">Cancel</button>
+        <button onclick="applyCustomAdjustment()" 
+                class="px-5 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700">
+          Apply Adjustment
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initial data - 7 nights example
+    let nights = [
+      { date: "2026-07-10", type: "Weekday", base: 500, adjustment: 0, final: 500, reason: "" },
+      { date: "2026-07-11", type: "Weekend", base: 650, adjustment: 0, final: 650, reason: "" },
+      { date: "2026-07-12", type: "Weekend", base: 650, adjustment: 0, final: 650, reason: "" },
+      { date: "2026-07-13", type: "Weekday", base: 500, adjustment: 0, final: 500, reason: "" },
+      { date: "2026-07-14", type: "Weekday", base: 500, adjustment: 0, final: 500, reason: "" },
+      { date: "2026-07-15", type: "Weekday", base: 500, adjustment: 0, final: 500, reason: "" },
+      { date: "2026-07-16", type: "Weekday", base: 500, adjustment: 0, final: 500, reason: "" },
+    ];
+
+    let changeLog = [
+      { time: "2026-01-27 14:32", action: "System calculated base rate", details: "7 nights • $4,100 total before discount", user: "System" },
+      { time: "2026-01-27 14:32", action: "Applied weekly discount", details: "-$350.00", user: "System" }
+    ];
+
+    function renderNightsTable() {
+      const tbody = document.getElementById('nights-table');
+      tbody.innerHTML = '';
+
+      nights.forEach((night, index) => {
+        const row = document.createElement('tr');
+        row.className = 'adjustment-row cursor-pointer';
+        row.innerHTML = `
+          <td class="px-6 py-3 font-medium">${new Date(night.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 text-xs rounded-full ${night.type === 'Weekend' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}">
+              ${night.type}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right font-medium">$${night.base}</td>
+          <td class="px-4 py-3 text-right">
+            ${night.adjustment !== 0 ? 
+              `<span class="${night.adjustment < 0 ? 'text-emerald-600' : 'text-orange-600'} font-medium">
+                ${night.adjustment > 0 ? '+' : ''}$${night.adjustment}
+              </span>` : 
+              '<span class="text-slate-400">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-right font-semibold">$${night.final}</td>
+          <td class="px-4 py-3">
+            <button onclick="event.stopImmediatePropagation(); showDailyAdjustmentModal(${index})" 
+                    class="text-emerald-600 hover:text-emerald-700 p-1">
+              <i class="fa-solid fa-edit text-sm"></i>
+            </button>
+          </td>
+        `;
+        
+        row.onclick = () => showDailyAdjustmentModal(index);
+        tbody.appendChild(row);
+      });
+
+      updateTotals();
+    }
+
+    function updateTotals() {
+      const baseTotal = nights.reduce((sum, n) => sum + n.final, 0);
+      const weeklyDiscount = -350; // hardcoded for demo
+      const subtotal = baseTotal + weeklyDiscount;
+
+      const localTax = Math.round(subtotal * 0.09 * 100) / 100;
+      const stateTax = Math.round(subtotal * 0.06 * 100) / 100;
+      const cleaning = 300;
+      const totalGuest = subtotal + localTax + stateTax + cleaning;
+
+      const managementFee = Math.round((baseTotal + weeklyDiscount) * 0.22 * 100) / 100;
+      const ownerProceeds = (baseTotal + weeklyDiscount) - managementFee + localTax + stateTax + cleaning; // simplified
+
+      document.getElementById('base-total').textContent = `$${baseTotal.toFixed(2)}`;
+      document.getElementById('weekly-discount').textContent = `$${weeklyDiscount.toFixed(2)}`;
+      document.getElementById('local-tax').textContent = `$${localTax.toFixed(2)}`;
+      document.getElementById('state-tax').textContent = `$${stateTax.toFixed(2)}`;
+      document.getElementById('total-guest').textContent = `$${totalGuest.toFixed(2)}`;
+      document.getElementById('management-fee').textContent = `$${managementFee.toFixed(2)}`;
+      document.getElementById('owner-proceeds').textContent = `$${ownerProceeds.toFixed(2)}`;
+    }
+
+    function showDailyAdjustmentModal(index) {
+      const night = nights[index];
+      const amount = prompt(`Adjustment for ${night.date} (current: $${night.final})\nEnter amount (positive or negative):`, night.adjustment || '');
+      if (amount === null) return;
+
+      const reason = prompt('Reason for this adjustment (required for audit log):', night.reason || '');
+      if (!reason || reason.trim() === '') {
+        alert('Reason is required.');
+        return;
+      }
+
+      const adjAmount = parseFloat(amount);
+      if (isNaN(adjAmount)) return;
+
+      night.adjustment = adjAmount;
+      night.final = night.base + adjAmount;
+      night.reason = reason;
+
+      addToLog(`Daily adjustment on ${night.date}`, `${adjAmount > 0 ? '+' : ''}$${adjAmount} — ${reason}`, 'Howard Shen');
+      renderNightsTable();
+    }
+
+    function applyStayAdjustment(amount, reason) {
+      const reasonText = reason || prompt('Reason for this stay-level adjustment:');
+      if (!reasonText) return;
+
+      nights.forEach(night => {
+        night.adjustment += amount / nights.length;
+        night.final = night.base + night.adjustment;
+      });
+
+      addToLog('Stay-level adjustment', `${amount > 0 ? '+' : ''}$${amount} across all nights — ${reasonText}`, 'Howard Shen');
+      renderNightsTable();
+    }
+
+    function showCustomAdjustmentModal() {
+      document.getElementById('adjustment-modal').classList.remove('hidden');
+      document.getElementById('adjustment-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('adjustment-modal').classList.remove('flex');
+      document.getElementById('adjustment-modal').classList.add('hidden');
+    }
+
+    function applyCustomAdjustment() {
+      const type = document.getElementById('adjustment-type').value;
+      const amount = parseFloat(document.getElementById('adjustment-amount').value);
+      const reason = document.getElementById('adjustment-reason').value.trim();
+
+      if (!reason) {
+        alert('Please provide a reason.');
+        return;
+      }
+
+      if (type === 'daily') {
+        nights.forEach(n => {
+          n.adjustment += amount;
+          n.final = n.base + n.adjustment;
+        });
+        addToLog('Daily adjustment (all nights)', `${amount > 0 ? '+' : ''}$${amount} per night — ${reason}`, 'Howard Shen');
+      } else {
+        nights.forEach(n => {
+          n.adjustment += amount / nights.length;
+          n.final = n.base + n.adjustment;
+        });
+        addToLog('Stay adjustment', `${amount > 0 ? '+' : ''}$${amount} total — ${reason}`, 'Howard Shen');
+      }
+
+      closeModal();
+      renderNightsTable();
+      document.getElementById('adjustment-reason').value = '';
+    }
+
+    function addToLog(action, details, user = 'Howard Shen') {
+      const now = new Date().toLocaleString('en-US', { 
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' 
+      });
+      
+      changeLog.unshift({
+        time: now,
+        action: action,
+        details: details,
+        user: user
+      });
+
+      renderChangeLog();
+    }
+
+    function renderChangeLog() {
+      const container = document.getElementById('change-log');
+      container.innerHTML = changeLog.map(entry => `
+        <div class="log-entry border-l-2 border-emerald-400 pl-3 py-1">
+          <div class="flex justify-between">
+            <span class="font-medium">${entry.action}</span>
+            <span class="text-slate-400">${entry.time}</span>
+          </div>
+          <div class="text-slate-600">${entry.details}</div>
+          <div class="text-emerald-700 text-[10px]">— ${entry.user}</div>
+        </div>
+      `).join('');
+    }
+
+    function approveWithCurrentPricing() {
+      if (confirm('Send this pricing quote to the guest and mark as Approved?')) {
+        alert('Quote sent to guest! (Mockup)');
+        window.location.href = '02-admin-requests-list.html';
+      }
+    }
+
+    function saveDraft() {
+      alert('Pricing saved as draft. (Mockup)');
+    }
+
+    // Initialize
+    function init() {
+      // Seed some initial log entries
+      if (changeLog.length === 0) {
+        changeLog = [
+          { time: "Jan 27, 2:32 PM", action: "System calculated base rates", details: "7 nights • $4,100 before discount", user: "System" },
+          { time: "Jan 27, 2:32 PM", action: "Applied weekly discount", details: "-$350.00", user: "System" }
+        ];
+      }
+
+      renderNightsTable();
+      renderChangeLog();
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
