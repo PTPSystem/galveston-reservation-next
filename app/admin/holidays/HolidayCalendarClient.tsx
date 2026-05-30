@@ -196,19 +196,20 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border overflow-x-auto">
-        <div className="p-4 border-b flex justify-between items-center">
+        <div className="p-3 sm:p-4 border-b flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <h2 className="font-semibold text-slate-900">Defined Periods</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={removeDuplicates}
-              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm"
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm"
             >
               <i className="fa-solid fa-broom"></i>
-              Remove Duplicates
+              <span className="hidden sm:inline">Remove Duplicates</span>
+              <span className="sm:hidden">Clean Duplicates</span>
             </button>
             <button
               onClick={openAddModal}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700"
+              className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm hover:bg-emerald-700"
             >
               <i className="fa-solid fa-plus"></i>
               Add Period
@@ -216,16 +217,16 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
           </div>
         </div>
 
-        <table className="w-full text-sm table-fixed">
+        <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-6 py-3 text-left text-slate-900 font-semibold">Name</th>
-              <th className="px-6 py-3 text-left text-slate-900 font-semibold">Start</th>
-              <th className="px-6 py-3 text-left text-slate-900 font-semibold">End</th>
-              <th className="px-6 py-3 text-center text-slate-900 font-semibold">Nights</th>
-              <th className="px-6 py-3 text-center text-slate-900 font-semibold">Rate</th>
-              <th className="px-6 py-3 text-left text-slate-900 font-semibold">Notes</th>
-              <th className="px-6 py-3 text-right text-slate-900 font-semibold">Actions</th>
+              <th className="px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Name</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">Start</th>
+              <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">End</th>
+              <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Nights</th>
+              <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Rate</th>
+              <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Notes</th>
+              <th className="px-4 sm:px-6 py-3 text-right text-slate-900 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -237,33 +238,33 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
                 // Inline editing row
                 return (
                   <tr key={holiday.id} className="bg-emerald-50">
-                    <td className="px-6 py-3">
+                    <td className="px-4 sm:px-6 py-3">
                       <input
                         type="text"
                         value={editForm.name}
                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="w-full max-w-[220px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
+                        className="w-full max-w-[160px] sm:max-w-[220px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
                         placeholder="Name"
                       />
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-3 sm:px-6 py-3">
                       <input
                         type="date"
                         value={editForm.startDate}
                         onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                        className="w-full max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
+                        className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
                       />
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="px-3 sm:px-6 py-3">
                       <input
                         type="date"
                         value={editForm.endDate}
                         onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
-                        className="w-full max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
+                        className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
                       />
                     </td>
-                    <td className="px-6 py-3 text-center font-medium ">{nights}</td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-3 sm:px-6 py-3 text-center font-medium ">{nights}</td>
+                    <td className="px-3 sm:px-6 py-3 text-center">
                       <input
                         type="number"
                         value={editForm.rate}
@@ -271,16 +272,16 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
                         className="w-20 border rounded px-2 py-1 text-sm text-center text-slate-900 bg-white"
                       />
                     </td>
-                    <td className="px-6 py-3">
+                    <td className="hidden md:table-cell px-4 sm:px-6 py-3">
                       <input
                         type="text"
                         value={editForm.notes}
                         onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                        className="w-full max-w-[180px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
+                        className="w-full max-w-[140px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
                         placeholder="Notes"
                       />
                     </td>
-                    <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 sm:px-6 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={saveInlineEdit}
@@ -307,23 +308,23 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
                   className="hover:bg-slate-50 cursor-pointer"
                   onClick={() => startEditing(holiday)}
                 >
-                  <td className="px-6 py-4 font-medium text-slate-900">{holiday.name}</td>
-                  <td className="px-6 py-4 text-slate-800">
+                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">{holiday.name}</td>
+                  <td className="px-3 sm:px-6 py-4 text-slate-800">
                     {new Date(holiday.startDate).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-slate-800">
+                  <td className="px-3 sm:px-6 py-4 text-slate-800">
                     {new Date(holiday.endDate).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-center font-semibold text-slate-900">{nights}</td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-3 sm:px-6 py-4 text-center font-semibold text-slate-900">{nights}</td>
+                  <td className="px-3 sm:px-6 py-4 text-center">
                     <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-semibold">
                       ${holiday.rate}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-xs text-slate-700 max-w-xs truncate">
+                  <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-xs text-slate-700 max-w-xs truncate">
                     {holiday.notes || '—'}
                   </td>
-                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-4 sm:px-6 py-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => startEditing(holiday)}

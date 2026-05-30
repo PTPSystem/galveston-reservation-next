@@ -64,14 +64,14 @@ export default function EmailSettingsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto py-12 px-6">
+      <div className="max-w-2xl mx-auto py-8 px-4 sm:py-12 sm:px-6">
         <div className="text-center">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-12 px-6">
+    <div className="max-w-2xl mx-auto py-8 px-4 sm:py-12 sm:px-6">
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Email Recipients</h1>
         <p className="text-slate-600 mt-2">
@@ -92,7 +92,7 @@ export default function EmailSettingsPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-8 rounded-2xl border">
+      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-5 sm:p-8 rounded-2xl border">
         <div>
           <label className="block text-sm font-medium text-slate-800 mb-1.5">
             Property Manager Email

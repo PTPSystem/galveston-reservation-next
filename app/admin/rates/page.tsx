@@ -77,17 +77,17 @@ export default function RateSettingsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-6 sm:p-8">
         <div className="max-w-2xl">Loading rate settings...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div className="p-6 sm:p-8">
       <div className="max-w-2xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Rates &amp; Pricing</h1>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">Rates &amp; Pricing</h1>
           <p className="text-slate-600 mt-2">
             Set your base nightly rates and weekly discount. These rates are used when calculating quotes.
           </p>
@@ -105,7 +105,7 @@ export default function RateSettingsPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
+        <form onSubmit={handleSubmit} className="bg-white p-5 sm:p-8 rounded-2xl border space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-800 mb-1.5">

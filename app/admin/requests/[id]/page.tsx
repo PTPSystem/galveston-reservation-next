@@ -49,7 +49,7 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
   }));
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-6">
+    <div className="max-w-7xl mx-auto py-6 px-4 sm:py-8 sm:px-6">
       <QuoteClient
         bookingRequest={serializedRequest as any}
         holidayPeriods={serializedHolidays as any}

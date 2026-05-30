@@ -22,7 +22,7 @@ export default async function AdminHolidaysPage() {
   }));
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-6">
+    <div className="max-w-6xl mx-auto py-6 px-4 sm:py-8 sm:px-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Holiday & Peak Period Calendar</h1>

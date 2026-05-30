@@ -478,15 +478,15 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header - matches mockup */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5 sm:mb-6">
         <div>
           <a href="/admin/requests" className="text-emerald-600 hover:text-emerald-700 text-sm flex items-center gap-1">
             <i className="fa-solid fa-arrow-left"></i> Back to Requests
           </a>
-          <h1 className="text-2xl font-semibold mt-1">Quote Price &amp; Approve</h1>
-          <div className="text-slate-700">{bookingRequest.guestName} • {formattedDateRange}</div>
+          <h1 className="text-xl sm:text-2xl font-semibold mt-1">Quote Price &amp; Approve</h1>
+          <div className="text-slate-700 text-sm sm:text-base">{bookingRequest.guestName} • {formattedDateRange}</div>
         </div>
-        <div className="text-right text-sm">
+        <div className="sm:text-right text-sm">
           <div className="font-medium">Request #BR-2026-{String(bookingRequest.id).padStart(4, '0')}</div>
           <div>
             <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
@@ -511,19 +511,21 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
               <i className="fa-solid fa-calendar-days text-emerald-600"></i>
               Night-by-Night Pricing
             </div>
-            <div className="text-sm text-slate-700">Click any row to adjust</div>
+            <div className="text-sm text-slate-700 hidden md:block">Click any row to adjust</div>
+            <div className="text-sm text-slate-700 md:hidden">Tap any night to adjust</div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop / Tablet table view */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold">Date</th>
-                  <th className="px-4 py-3 text-left font-semibold">Night Type</th>
-                  <th className="px-4 py-3 text-right font-semibold">Base Rate</th>
-                  <th className="px-4 py-3 text-right font-semibold">Adjustment</th>
-                  <th className="px-4 py-3 text-right font-semibold">Final Night</th>
-                  <th className="px-4 py-3 w-8"></th>
+                  <th className="px-4 sm:px-6 py-3 text-left font-semibold">Date</th>
+                  <th className="px-3 sm:px-4 py-3 text-left font-semibold">Type</th>
+                  <th className="px-3 sm:px-4 py-3 text-right font-semibold">Base</th>
+                  <th className="px-3 sm:px-4 py-3 text-right font-semibold">Adj</th>
+                  <th className="px-3 sm:px-4 py-3 text-right font-semibold">Final</th>
+                  <th className="px-2 sm:px-4 py-3 w-8"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -533,9 +535,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                     onClick={() => openDailyAdjustment(index)}
                     className="cursor-pointer hover:bg-slate-50 transition-colors"
                   >
-                    <td className="px-6 py-3 font-medium text-slate-900">{formatDateLabel(night.date)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium ${
+                    <td className="px-4 sm:px-6 py-3 font-medium text-slate-900">{formatDateLabel(night.date)}</td>
+                    <td className="px-3 sm:px-4 py-3">
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
                         night.type === 'Holiday' ? 'bg-orange-100 text-orange-700' :
                         night.type === 'Weekend' ? 'bg-blue-100 text-blue-700' :
                         'bg-slate-100 text-slate-700'
@@ -543,8 +545,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                         {night.type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">${night.base}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 sm:px-4 py-3 text-right font-medium text-slate-900">${night.base}</td>
+                    <td className="px-3 sm:px-4 py-3 text-right">
                       {night.nightlyAdjustment !== 0 ? (
                         <span className={`font-semibold ${night.nightlyAdjustment < 0 ? 'text-emerald-600' : 'text-orange-600'}`}>
                           {night.nightlyAdjustment > 0 ? '+' : ''}${night.nightlyAdjustment.toFixed(2)}
@@ -553,8 +555,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                         <span className="text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900">${night.finalNight.toFixed(2)}</td>
-                    <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); openDailyAdjustment(index); }}>
+                    <td className="px-3 sm:px-4 py-3 text-right font-semibold text-slate-900">${night.finalNight.toFixed(2)}</td>
+                    <td className="px-2 sm:px-4 py-3" onClick={(e) => { e.stopPropagation(); openDailyAdjustment(index); }}>
                       <button className="text-emerald-600 hover:text-emerald-700 p-1">
                         <i className="fa-solid fa-edit text-sm"></i>
                       </button>
@@ -565,8 +567,54 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
             </table>
           </div>
 
+          {/* Mobile-friendly vertical night list (no horizontal scroll) */}
+          <div className="md:hidden divide-y text-sm">
+            {nights.map((night, index) => (
+              <div
+                key={night.date}
+                onClick={() => openDailyAdjustment(index)}
+                className="p-4 active:bg-slate-50 cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-medium text-slate-900">{formatDateLabel(night.date)}</div>
+                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                    night.type === 'Holiday' ? 'bg-orange-100 text-orange-700' :
+                    night.type === 'Weekend' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-700'
+                  }`}>
+                    {night.type}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Base</div>
+                    <div className="font-medium text-slate-900 mt-0.5">${night.base}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Adjustment</div>
+                    <div className={`font-semibold mt-0.5 ${night.nightlyAdjustment < 0 ? 'text-emerald-600' : night.nightlyAdjustment > 0 ? 'text-orange-600' : 'text-slate-500'}`}>
+                      {night.nightlyAdjustment !== 0 ? (
+                        <>{night.nightlyAdjustment > 0 ? '+' : ''}${night.nightlyAdjustment.toFixed(2)}</>
+                      ) : '—'}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Final</div>
+                    <div className="font-semibold text-slate-900 mt-0.5">${night.finalNight.toFixed(2)}</div>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 text-emerald-600 text-xs flex items-center gap-1.5">
+                  <i className="fa-solid fa-edit"></i>
+                  <span>Tap to adjust this night</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Quick Stay Adjustments - pure stay level, never touch nightly rows */}
-          <div className="p-6 border-t bg-slate-50">
+          <div className="p-4 sm:p-6 border-t bg-slate-50">
             <div className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-900">
               <i className="fa-solid fa-magic"></i> Quick Stay Adjustments
             </div>
@@ -613,7 +661,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
         {/* Right Sidebar */}
         <div className="xl:col-span-4 space-y-6">
           {/* Guest Price Summary - explicit separation of nightly vs stay adjustments */}
-          <div className="bg-white rounded-2xl shadow-sm border p-6">
+          <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
             <h3 className="font-semibold mb-4 text-slate-900">Guest Price Summary</h3>
 
             <div className="space-y-2 text-sm">
@@ -664,7 +712,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
           </div>
 
           {/* Internal Split - full breakdown for owner/manager */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-6">
             <h3 className="font-semibold text-amber-800 mb-4 flex items-center gap-2">
               <i className="fa-solid fa-handshake"></i> Internal Split (Not shown to guest)
             </h3>
@@ -738,7 +786,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
         </div>
 
         {/* Pricing Change Log - full width */}
-        <div className="xl:col-span-12 bg-white rounded-2xl shadow-sm border p-6">
+        <div className="xl:col-span-12 bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2 text-slate-900">
               <i className="fa-solid fa-history text-slate-600"></i> Pricing Change Log
