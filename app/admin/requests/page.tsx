@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
+import SyncVrboButton from './SyncVrboButton';
 
 // Force dynamic rendering so this page doesn't try to fetch data at build time
 export const dynamic = 'force-dynamic';
@@ -38,15 +39,7 @@ export default async function AdminRequestsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
         <h1 className="text-2xl font-semibold">Booking Requests</h1>
         
-        <form action="/api/admin/sync-vrbo" method="POST">
-          <button 
-            type="submit"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
-          >
-            <i className="fa-solid fa-sync"></i>
-            Sync VRBO Calendar
-          </button>
-        </form>
+        <SyncVrboButton />
       </div>
 
       {/* Mobile Card View — much better than forcing horizontal scroll on phones */}
