@@ -18,6 +18,7 @@ interface Props {
 export default function HolidayCalendarClient({ initialHolidays }: Props) {
   const [holidays, setHolidays] = useState<HolidayPeriod[]>(initialHolidays);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Inline editing state
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -50,6 +51,11 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
 
   const closeAddModal = () => {
     setIsAddModalOpen(false);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    cancelEditing();
   };
 
   // Start inline editing for a row
@@ -106,6 +112,7 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
         const updated = await res.json();
         setHolidays(holidays.map(h => h.id === updated.id ? updated : h));
         setEditingId(null);
+        setIsEditModalOpen(false);
       }
     } catch (error) {
       console.error('Failed to save edit', error);
@@ -195,7 +202,8 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border overflow-x-auto">
+      {/* Header row with actions - shared between mobile and desktop */}
+      <div className="bg-white rounded-2xl shadow-sm border mb-4">
         <div className="p-3 sm:p-4 border-b flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
           <h2 className="font-semibold text-slate-900">Defined Periods</h2>
           <div className="flex flex-wrap gap-2">
@@ -217,136 +225,194 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
           </div>
         </div>
 
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Name</th>
-              <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">Start</th>
-              <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">End</th>
-              <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Nights</th>
-              <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Rate</th>
-              <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Notes</th>
-              <th className="px-4 sm:px-6 py-3 text-right text-slate-900 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {holidays.map((holiday) => {
-              const nights = calculateNights(holiday.startDate, holiday.endDate);
-              const isEditing = holiday.id === editingId;
+        {/* Desktop / Tablet Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Name</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">Start</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-slate-900 font-semibold">End</th>
+                <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Nights</th>
+                <th className="px-3 sm:px-6 py-3 text-center text-slate-900 font-semibold">Rate</th>
+                <th className="hidden md:table-cell px-4 sm:px-6 py-3 text-left text-slate-900 font-semibold">Notes</th>
+                <th className="px-4 sm:px-6 py-3 text-right text-slate-900 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {holidays.map((holiday) => {
+                const nights = calculateNights(holiday.startDate, holiday.endDate);
+                const isEditing = holiday.id === editingId;
 
-              if (isEditing) {
-                // Inline editing row
+                if (isEditing) {
+                  // Inline editing row (desktop only)
+                  return (
+                    <tr key={holiday.id} className="bg-emerald-50">
+                      <td className="px-4 sm:px-6 py-3">
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full max-w-[160px] sm:max-w-[220px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
+                          placeholder="Name"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-3">
+                        <input
+                          type="date"
+                          value={editForm.startDate}
+                          onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                          className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-3">
+                        <input
+                          type="date"
+                          value={editForm.endDate}
+                          onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                          className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
+                        />
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 text-center font-medium ">{nights}</td>
+                      <td className="px-3 sm:px-6 py-3 text-center">
+                        <input
+                          type="number"
+                          value={editForm.rate}
+                          onChange={(e) => setEditForm({ ...editForm, rate: parseInt(e.target.value) || 700 })}
+                          className="w-20 border rounded px-2 py-1 text-sm text-center text-slate-900 bg-white"
+                        />
+                      </td>
+                      <td className="hidden md:table-cell px-4 sm:px-6 py-3">
+                        <input
+                          type="text"
+                          value={editForm.notes}
+                          onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                          className="w-full max-w-[140px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
+                          placeholder="Notes"
+                        />
+                      </td>
+                      <td className="px-4 sm:px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={saveInlineEdit}
+                            className="px-3 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="px-3 py-1 text-sm border rounded text-slate-700 hover:bg-slate-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                // Normal display row
                 return (
-                  <tr key={holiday.id} className="bg-emerald-50">
-                    <td className="px-4 sm:px-6 py-3">
-                      <input
-                        type="text"
-                        value={editForm.name}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="w-full max-w-[160px] sm:max-w-[220px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
-                        placeholder="Name"
-                      />
+                  <tr 
+                    key={holiday.id} 
+                    className="hover:bg-slate-50 cursor-pointer"
+                    onClick={() => startEditing(holiday)}
+                  >
+                    <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">{holiday.name}</td>
+                    <td className="px-3 sm:px-6 py-4 text-slate-800">
+                      {new Date(holiday.startDate).toLocaleDateString()}
                     </td>
-                    <td className="px-3 sm:px-6 py-3">
-                      <input
-                        type="date"
-                        value={editForm.startDate}
-                        onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
-                        className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
-                      />
+                    <td className="px-3 sm:px-6 py-4 text-slate-800">
+                      {new Date(holiday.endDate).toLocaleDateString()}
                     </td>
-                    <td className="px-3 sm:px-6 py-3">
-                      <input
-                        type="date"
-                        value={editForm.endDate}
-                        onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
-                        className="w-full max-w-[110px] sm:max-w-[130px] border rounded px-2 py-1 text-sm text-slate-900 bg-white"
-                      />
+                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-slate-900">{nights}</td>
+                    <td className="px-3 sm:px-6 py-4 text-center">
+                      <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-semibold">
+                        ${holiday.rate}
+                      </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-3 text-center font-medium ">{nights}</td>
-                    <td className="px-3 sm:px-6 py-3 text-center">
-                      <input
-                        type="number"
-                        value={editForm.rate}
-                        onChange={(e) => setEditForm({ ...editForm, rate: parseInt(e.target.value) || 700 })}
-                        className="w-20 border rounded px-2 py-1 text-sm text-center text-slate-900 bg-white"
-                      />
+                    <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-xs text-slate-700 max-w-xs truncate">
+                      {holiday.notes || '—'}
                     </td>
-                    <td className="hidden md:table-cell px-4 sm:px-6 py-3">
-                      <input
-                        type="text"
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                        className="w-full max-w-[140px] border rounded px-2 py-1 text-sm text-slate-900 bg-white placeholder:text-slate-500"
-                        placeholder="Notes"
-                      />
-                    </td>
-                    <td className="px-4 sm:px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-4 sm:px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2 justify-end">
                         <button
-                          onClick={saveInlineEdit}
-                          className="px-3 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                          onClick={() => startEditing(holiday)}
+                          className="flex items-center gap-1.5 px-3 py-1 text-sm rounded-lg border border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-900 transition-colors"
                         >
-                          Save
+                          <i className="fa-solid fa-edit"></i>
+                          <span>Edit</span>
                         </button>
                         <button
-                          onClick={cancelEditing}
-                          className="px-3 py-1 text-sm border rounded text-slate-700 hover:bg-slate-100"
+                          onClick={() => handleDelete(holiday.id)}
+                          className="flex items-center gap-1.5 px-3 py-1 text-sm rounded-lg border border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors"
                         >
-                          Cancel
+                          <i className="fa-solid fa-trash"></i>
+                          <span>Delete</span>
                         </button>
                       </div>
                     </td>
                   </tr>
                 );
-              }
+              })}
+            </tbody>
+          </table>
+        </div>
 
-              // Normal display row
-              return (
-                <tr 
-                  key={holiday.id} 
-                  className="hover:bg-slate-50 cursor-pointer"
-                  onClick={() => startEditing(holiday)}
-                >
-                  <td className="px-4 sm:px-6 py-4 font-medium text-slate-900">{holiday.name}</td>
-                  <td className="px-3 sm:px-6 py-4 text-slate-800">
-                    {new Date(holiday.startDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 sm:px-6 py-4 text-slate-800">
-                    {new Date(holiday.endDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 sm:px-6 py-4 text-center font-semibold text-slate-900">{nights}</td>
-                  <td className="px-3 sm:px-6 py-4 text-center">
-                    <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs font-semibold">
+        {/* Mobile Card View - much easier to use on phones */}
+        <div className="md:hidden divide-y">
+          {holidays.length === 0 && (
+            <div className="p-8 text-center text-slate-600">No holiday periods defined yet.</div>
+          )}
+          {holidays.map((holiday) => {
+            const nights = calculateNights(holiday.startDate, holiday.endDate);
+
+            return (
+              <div key={holiday.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-lg text-slate-900">{holiday.name}</div>
+                    <div className="mt-1 text-sm text-slate-700">
+                      {new Date(holiday.startDate).toLocaleDateString()} → {new Date(holiday.endDate).toLocaleDateString()}
+                      <span className="text-slate-500"> ({nights} nights)</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold">
                       ${holiday.rate}
                     </span>
-                  </td>
-                  <td className="hidden md:table-cell px-4 sm:px-6 py-4 text-xs text-slate-700 max-w-xs truncate">
-                    {holiday.notes || '—'}
-                  </td>
-                  <td className="px-4 sm:px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => startEditing(holiday)}
-                        className="flex items-center gap-1.5 px-3 py-1 text-sm rounded-lg border border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                      >
-                        <i className="fa-solid fa-edit"></i>
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(holiday.id)}
-                        className="flex items-center gap-1.5 px-3 py-1 text-sm rounded-lg border border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors"
-                      >
-                        <i className="fa-solid fa-trash"></i>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+
+                {holiday.notes && (
+                  <div className="mt-2 text-sm text-slate-600 line-clamp-2">
+                    {holiday.notes}
+                  </div>
+                )}
+
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={() => {
+                      startEditing(holiday);
+                      setIsEditModalOpen(true);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-slate-300 rounded-xl hover:bg-slate-50 active:bg-slate-100"
+                  >
+                    <i className="fa-solid fa-edit"></i>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(holiday.id)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-red-200 text-red-700 rounded-xl hover:bg-red-50 active:bg-red-100"
+                  >
+                    <i className="fa-solid fa-trash"></i>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Add Modal (only for adding new periods) */}
@@ -423,6 +489,89 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal - used on mobile for much better experience */}
+      {isEditModalOpen && editingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeEditModal}>
+          <div className="bg-white w-full max-w-lg mx-4 rounded-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-slate-900">Edit Holiday / Peak Period</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="mt-1 w-full border rounded-lg px-4 py-2 text-slate-900"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Start Date</label>
+                    <input
+                      type="date"
+                      value={editForm.startDate}
+                      onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                      className="mt-1 w-full border rounded-lg px-4 py-2 text-slate-900"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">End Date</label>
+                    <input
+                      type="date"
+                      value={editForm.endDate}
+                      onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                      className="mt-1 w-full border rounded-lg px-4 py-2 text-slate-900"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Rate per Night</label>
+                  <input
+                    type="number"
+                    value={editForm.rate}
+                    onChange={(e) => setEditForm({ ...editForm, rate: parseInt(e.target.value) || 700 })}
+                    className="mt-1 w-full border rounded-lg px-4 py-2 text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Notes</label>
+                  <textarea
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                    className="mt-1 w-full border rounded-lg px-4 py-2 text-slate-900"
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-5">
+                <button 
+                  type="button" 
+                  onClick={closeEditModal} 
+                  className="px-4 py-2 text-sm text-slate-700 hover:text-slate-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveInlineEdit}
+                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>

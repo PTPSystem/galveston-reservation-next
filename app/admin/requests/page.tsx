@@ -6,13 +6,48 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminRequestsPage() {
   const requests = await prisma.bookingRequest.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 50,
+    take: 100,
+  });
+
+  // Smart sort for admin workflow:
+  // 1. Items needing attention (PENDING + REVIEWING) at the top
+  // 2. Then REJECTED → CONFIRMED → CANCELLED
+  // 3. Within each group, sort by trip start date (soonest first)
+  const statusPriority: Record<string, number> = {
+    PENDING: 1,
+    REVIEWING: 2,
+    REJECTED: 3,
+    CONFIRMED: 4,
+    CANCELLED: 5,
+  };
+
+  requests.sort((a, b) => {
+    const prioA = statusPriority[a.status] ?? 99;
+    const prioB = statusPriority[b.status] ?? 99;
+
+    if (prioA !== prioB) {
+      return prioA - prioB; // lower number = higher priority (on top)
+    }
+
+    // Same priority group → sort by start date (soonest trips first)
+    return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
   });
 
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:py-8 sm:px-6">
-      <h1 className="text-2xl font-semibold mb-5 sm:mb-6">Booking Requests</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
+        <h1 className="text-2xl font-semibold">Booking Requests</h1>
+        
+        <form action="/api/admin/sync-vrbo" method="POST">
+          <button 
+            type="submit"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            <i className="fa-solid fa-sync"></i>
+            Sync VRBO Calendar
+          </button>
+        </form>
+      </div>
 
       {/* Mobile Card View — much better than forcing horizontal scroll on phones */}
       <div className="md:hidden space-y-4">
@@ -37,16 +72,23 @@ export default async function AdminRequestsPage() {
                     <div className="font-semibold text-lg text-slate-900 leading-tight">{req.guestName}</div>
                     <div className="text-sm text-slate-700 break-all">{req.guestEmail}</div>
                   </div>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${
-                    req.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                    req.status === 'REVIEWING' ? 'bg-blue-100 text-blue-700' :
-                    req.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                    req.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
-                    req.status === 'CANCELLED' ? 'bg-slate-200 text-slate-700' :
-                    'bg-slate-100 text-slate-800'
-                  }`}>
-                    {req.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      req.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                      req.status === 'REVIEWING' ? 'bg-blue-100 text-blue-700' :
+                      req.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                      req.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
+                      req.status === 'CANCELLED' ? 'bg-slate-200 text-slate-700' :
+                      'bg-slate-100 text-slate-800'
+                    }`}>
+                      {req.status}
+                    </span>
+                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
+                      req.source === 'VRBO' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {req.source}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Key details */}
@@ -95,6 +137,7 @@ export default async function AdminRequestsPage() {
                   <th className="px-3 sm:px-6 py-3 text-center font-semibold">Nights</th>
                   <th className="px-3 sm:px-6 py-3 text-center font-semibold">Guests</th>
                   <th className="px-4 sm:px-6 py-3 text-left font-semibold">Status</th>
+                  <th className="px-3 sm:px-6 py-3 text-left font-semibold">Source</th>
                   <th className="hidden lg:table-cell px-4 sm:px-6 py-3 text-left font-semibold">Submitted</th>
                   <th className="sticky right-0 z-10 bg-slate-50 px-3 sm:px-4 py-3 w-20 text-right font-semibold">Review</th>
                 </tr>
@@ -102,7 +145,7 @@ export default async function AdminRequestsPage() {
               <tbody className="divide-y">
                 {requests.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-slate-800">
+                    <td colSpan={8} className="px-6 py-8 text-center text-slate-800">
                       No booking requests yet.
                     </td>
                   </tr>
@@ -132,6 +175,15 @@ export default async function AdminRequestsPage() {
                           'bg-slate-100 text-slate-800'
                         }`}>
                           {req.status}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-4">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
+                          req.source === 'VRBO' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {req.source}
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-4 sm:px-6 py-4 text-sm text-slate-800">

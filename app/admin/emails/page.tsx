@@ -15,6 +15,7 @@ export default function EmailSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [emailStatus, setEmailStatus] = useState<any>(null);
 
   // Load current settings
   useEffect(() => {
@@ -33,6 +34,12 @@ export default function EmailSettingsPage() {
     };
 
     fetchSettings();
+
+    // Also fetch email sending status
+    fetch('/api/admin/email-status')
+      .then(res => res.json())
+      .then(setEmailStatus)
+      .catch(() => {});
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +85,29 @@ export default function EmailSettingsPage() {
           Configure who receives internal emails (new booking requests and quote confirmations).
           For now, both will receive all emails.
         </p>
+
+        {emailStatus && (
+          <div className={`mt-4 p-4 rounded-xl text-sm border ${
+            emailStatus.readyToSend 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}>
+            <div className="font-medium mb-1">
+              Email Sending Status: {emailStatus.readyToSend ? 'Ready' : 'Not Fully Configured'}
+            </div>
+            <div className="text-xs opacity-80">
+              From: {emailStatus.fromEmail}
+              {!emailStatus.isFromEmailConfigured && ' (default — needs to be a verified Resend address)'}
+            </div>
+            {!emailStatus.readyToSend && emailStatus.recommendations?.length > 0 && (
+              <ul className="mt-2 text-xs list-disc pl-4">
+                {emailStatus.recommendations.map((r: string, i: number) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       {message && (

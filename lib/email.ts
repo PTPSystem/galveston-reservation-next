@@ -4,6 +4,18 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY) 
   : null;
 
+const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
+const isFromEmailConfigured = fromEmail !== 'bookings@yourdomain.com';
+
+export function getEmailConfigStatus() {
+  return {
+    hasApiKey: !!process.env.RESEND_API_KEY,
+    fromEmail,
+    isFromEmailConfigured,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  };
+}
+
 interface SendBookingConfirmationParams {
   to: string;
   guestName: string;
@@ -24,8 +36,13 @@ export async function sendBookingConfirmationEmail({
   approvalToken,
 }: SendBookingConfirmationParams) {
   if (!resend) {
-    console.log('[Email] Resend not configured - skipping confirmation email');
-    return { success: false, skipped: true };
+    console.warn('[Email] RESEND_API_KEY is missing. Emails will not be sent.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured (still using default). Emails will fail.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
   const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
@@ -41,7 +58,7 @@ export async function sendBookingConfirmationEmail({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `Bayfront Retreat <${process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com'}>`,
+      from: `Bayfront Retreat <${fromEmail}>`,
       to: [to],
       subject: 'Your booking request has been received - Bayfront Retreat',
       html: `
@@ -117,8 +134,13 @@ export async function sendQuoteEmail({
   approvalToken,
 }: SendQuoteEmailParams) {
   if (!resend) {
-    console.log('[Email] Resend not configured - skipping quote email');
-    return { success: false, skipped: true };
+    console.warn('[Email] RESEND_API_KEY is missing. Quote email skipped.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured. Quote email will fail.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
   const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
@@ -133,7 +155,6 @@ export async function sendQuoteEmail({
   });
 
   const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
 
   try {
     const { data, error } = await resend.emails.send({
@@ -220,8 +241,13 @@ export async function sendInternalNewRequestNotification({
   approvalToken,
 }: SendInternalNewRequestParams) {
   if (!resend) {
-    console.log('[Email] Resend not configured - skipping internal new request notification');
-    return { success: false, skipped: true };
+    console.warn('[Email] RESEND_API_KEY is missing. Internal notification skipped.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured. Internal notification will fail.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
   const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
@@ -312,8 +338,13 @@ export async function sendInternalBookingConfirmedEmail({
   bookingId,
 }: SendInternalConfirmationParams) {
   if (!resend) {
-    console.log('[Email] Resend not configured - skipping internal notification');
-    return { success: false, skipped: true };
+    console.warn('[Email] RESEND_API_KEY is missing. Internal confirmation skipped.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured. Internal confirmation will fail.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
   if (!recipients || recipients.length === 0) {

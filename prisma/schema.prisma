@@ -31,6 +31,9 @@ model BookingRequest {
   // Source of the booking/request
   source            BookingSource   @default(DIRECT)
 
+  // External system ID (e.g. VRBO iCal UID) for deduplication on sync
+  externalId        String?         @unique @map("external_id")
+
   // Pricing (stored as JSON for flexibility)
   pricing           Json?           // See BookingPricing type in code
 
