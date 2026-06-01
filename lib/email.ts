@@ -155,45 +155,87 @@ export async function sendQuoteEmail({
   });
 
   const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
+  const base = pricing.baseRateSum?.toFixed(2) ?? '0.00';
+  const nightlyAdj = pricing.nightlyAdjSum?.toFixed(2) ?? '0.00';
+  const stayAdj = pricing.stayAdjSum?.toFixed(2) ?? '0.00';
+  const subtotal = pricing.netAfterAdjustments?.toFixed(2) ?? total;
+  const jamaicaTax = pricing.jamaicaBeachTax?.toFixed(2) ?? '0.00';
+  const texasTax = pricing.texasStateTax?.toFixed(2) ?? '0.00';
+  const cleaning = pricing.cleaningFee?.toFixed(2) ?? pricing.cleaning?.toFixed(2) ?? '300.00';
+  const nights = pricing.nights || '?';
 
   try {
     const { data, error } = await resend.emails.send({
       from: `Bayfront Retreat <${fromEmail}>`,
       to: [to],
-      subject: `Your Quote for Bayfront Retreat – ${formattedStart} to ${formattedEnd}`,
+      subject: `Your Reservation is Confirmed – Bayfront Retreat`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background-color: #ffffff;">
           <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 8px 0; color: #111827;">
-            Your quote for Bayfront Retreat
+            Your reservation is confirmed!
           </h1>
           
           <p style="font-size: 15px; color: #374151; margin: 0 0 24px 0;">
             Hi ${guestName.split(' ')[0]},<br><br>
-            Thank you for your interest. Below is your personalized quote.
+            Great news — your stay at Bayfront Retreat has been confirmed.
           </p>
 
           <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Dates</p>
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Confirmed Dates</p>
             <p style="margin: 0 0 16px 0; font-size: 15px; color: #111827;">
               <strong>${formattedStart}</strong> — <strong>${formattedEnd}</strong><br>
-              ${pricing.nights || '?'} nights
+              ${nights} nights
             </p>
 
-            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Total</p>
-            <p style="margin: 0; font-size: 22px; font-weight: 600; color: #111827;">
-              $${total}
-            </p>
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Charge Breakdown</p>
+
+            <table style="width: 100%; font-size: 14px; color: #374151; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 4px 0;">Base Rate</td>
+                <td style="padding: 4px 0; text-align: right;">$${base}</td>
+              </tr>
+              ${parseFloat(nightlyAdj) !== 0 ? `
+              <tr>
+                <td style="padding: 4px 0;">Nightly Adjustments</td>
+                <td style="padding: 4px 0; text-align: right;">${parseFloat(nightlyAdj) > 0 ? '+' : ''}$${nightlyAdj}</td>
+              </tr>` : ''}
+              ${parseFloat(stayAdj) !== 0 ? `
+              <tr>
+                <td style="padding: 4px 0;">Stay Adjustments</td>
+                <td style="padding: 4px 0; text-align: right;">${parseFloat(stayAdj) > 0 ? '+' : ''}$${stayAdj}</td>
+              </tr>` : ''}
+              <tr style="border-top: 1px solid #e5e7eb;">
+                <td style="padding: 8px 0 4px 0; font-weight: 500;">Subtotal after Adjustments</td>
+                <td style="padding: 8px 0 4px 0; text-align: right; font-weight: 500;">$${subtotal}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0;">Jamaica Beach Tax (9%)</td>
+                <td style="padding: 4px 0; text-align: right;">$${jamaicaTax}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0;">Texas State Tax (6%)</td>
+                <td style="padding: 4px 0; text-align: right;">$${texasTax}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0;">Cleaning Fee</td>
+                <td style="padding: 4px 0; text-align: right;">$${cleaning}</td>
+              </tr>
+              <tr style="border-top: 2px solid #111827; font-weight: 600; font-size: 15px;">
+                <td style="padding: 10px 0 4px 0;">Total Charged</td>
+                <td style="padding: 10px 0 4px 0; text-align: right;">$${total}</td>
+              </tr>
+            </table>
           </div>
 
           <p style="margin: 0 0 24px 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/${approvalToken}" 
                style="display: inline-block; background-color: #0f766e; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
-              View Full Quote &amp; Details
+              View Full Details &amp; Manage Booking
             </a>
           </p>
 
           <p style="font-size: 14px; color: #4b5563; margin: 0;">
-            Please reply to this email to confirm your stay or if you have any questions.
+            If you have any questions, just reply to this email. We look forward to hosting you!
           </p>
 
           <p style="font-size: 13px; color: #9ca3af; margin-top: 32px;">
