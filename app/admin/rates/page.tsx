@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 interface RateSettings {
   weekdayRate: number;
@@ -10,6 +12,16 @@ interface RateSettings {
 }
 
 export default function RateSettingsPage() {
+  const { data: session, status } = useSession();
+  const role = (session?.user as any)?.role;
+
+  if (status === 'loading') return <div className="p-8">Loading...</div>;
+  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
+    // Client redirect
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    return null;
+  }
+
   const [rates, setRates] = useState<RateSettings>({
     weekdayRate: 500,
     weekendRate: 650,

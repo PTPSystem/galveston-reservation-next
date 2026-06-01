@@ -1,18 +1,30 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/admin/requests", label: "Booking Requests" },
-    { href: "/admin/rates", label: "Rates & Pricing" },
-    { href: "/admin/holidays", label: "Holidays & Peak Periods" },
-    { href: "/admin/emails", label: "Email Recipients" },
+    { href: "/admin/requests", label: "Booking Requests", minRole: "PROPERTY_MANAGER" },
+    { href: "/admin/rates", label: "Rates & Pricing", minRole: "PROPERTY_MANAGER" },
+    { href: "/admin/holidays", label: "Holidays & Peak Periods", minRole: "PROPERTY_MANAGER" },
+    { href: "/admin/users", label: "Users & Invites", minRole: "OWNER" },
+    { href: "/admin/emails", label: "Email Recipients", minRole: "PROPERTY_MANAGER" },
   ];
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role as 'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER' | undefined;
+
+  const roleOrder = { PROPERTY_MANAGER: 1, OWNER: 2, ADMIN: 3 };
+  const currentRoleLevel = userRole ? roleOrder[userRole] : 0;
+
+  const visibleNavItems = navItems.filter((item) => {
+    const minLevel = roleOrder[item.minRole as keyof typeof roleOrder] || 1;
+    return currentRoleLevel >= minLevel;
+  });
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -46,7 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <nav className="flex-1 px-3 py-4">
             <ul className="space-y-1">
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <li key={item.href}>
                   <a
                     href={item.href}
@@ -59,8 +71,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </ul>
           </nav>
 
-          <div className="p-4 border-t border-slate-200 text-xs text-slate-500">
-            <a href="/" className="hover:text-slate-700">← Back to Website</a>
+          <div className="p-4 border-t border-slate-200 text-xs text-slate-500 space-y-2">
+            <UserInfo />
+            <a href="/" className="hover:text-slate-700 block">← Back to Website</a>
           </div>
         </aside>
 
@@ -98,7 +111,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <nav className="flex-1 px-3 py-4 overflow-y-auto">
               <ul className="space-y-1">
-                {navItems.map((item) => (
+                {visibleNavItems.map((item) => (
                   <li key={item.href}>
                     <a
                       href={item.href}
@@ -118,6 +131,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function UserInfo() {
+  const { data: session } = useSession();
+
+  if (!session?.user) {
+    return <a href="/login" className="hover:text-slate-700">Sign in</a>;
+  }
+
+  const user = session.user as any;
+
+  return (
+    <div className="space-y-1">
+      <div className="font-medium text-slate-900">{user.name || user.email}</div>
+      <div className="text-[10px] text-emerald-600 font-medium">{user.role}</div>
+      <button
+        onClick={() => signOut({ callbackUrl: '/' })}
+        className="text-[10px] text-red-600 hover:text-red-700"
+      >
+        Sign out
+      </button>
     </div>
   );
 }

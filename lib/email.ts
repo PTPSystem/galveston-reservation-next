@@ -461,3 +461,128 @@ export async function sendInternalBookingConfirmedEmail({
   }
 }
 
+interface SendInviteParams {
+  to: string;
+  inviteLink: string;
+  inviterName?: string;
+  role: string;
+}
+
+export async function sendInviteEmail({
+  to,
+  inviteLink,
+  inviterName,
+  role,
+}: SendInviteParams) {
+  if (!resend) {
+    console.warn('[Email] RESEND_API_KEY is missing. Invite email skipped.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured. Invite email will fail.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
+  }
+
+  const roleLabel =
+    role === "ADMIN"
+      ? "Admin"
+      : role === "OWNER"
+      ? "Owner"
+      : "Property Manager";
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Bayfront Retreat <${fromEmail}>`,
+      to: [to],
+      subject: `Invitation to Bayfront Retreat Admin (${roleLabel})`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background-color: #ffffff;">
+          <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 16px 0; color: #111827;">
+            You're invited to Bayfront Retreat Admin
+          </h1>
+          
+          <p style="font-size: 15px; line-height: 1.6; color: #374151; margin: 0 0 24px 0;">
+            ${inviterName ? `${inviterName} has invited you` : "You have been invited"} to join as <strong>${roleLabel}</strong>.
+          </p>
+
+          <p style="font-size: 15px; line-height: 1.6; color: #374151; margin: 0 0 24px 0;">
+            Click the button below to set your password and activate your account.
+          </p>
+
+          <p style="margin: 0 0 24px 0;">
+            <a href="${inviteLink}" 
+               style="display: inline-block; background-color: #0f766e; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
+              Accept Invitation &amp; Set Password
+            </a>
+          </p>
+
+          <p style="font-size: 14px; color: #4b5563; margin: 0;">
+            This link will expire in 7 days. If you did not expect this invitation, you can ignore this email.
+          </p>
+
+          <p style="font-size: 13px; color: #9ca3af; margin-top: 32px;">
+            — Bayfront Retreat
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('[Email] Failed to send invite:', error);
+      return { success: false, error };
+    }
+
+    console.log('[Email] Invite sent:', data?.id);
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('[Email] Exception sending invite:', err);
+    return { success: false, error: err };
+  }
+}
+
+interface SendVerificationCodeParams {
+  to: string;
+  code: string;
+}
+
+export async function sendVerificationCodeEmail({
+  to,
+  code,
+}: SendVerificationCodeParams) {
+  if (!resend) {
+    console.warn('[Email] RESEND_API_KEY is missing. Verification code skipped.');
+    return { success: false, skipped: true, reason: 'missing_api_key' };
+  }
+
+  if (!isFromEmailConfigured) {
+    console.error('[Email] RESEND_FROM_EMAIL is not configured.');
+    return { success: false, skipped: true, reason: 'invalid_from_email' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Bayfront Retreat <${fromEmail}>`,
+      to: [to],
+      subject: `Your verification code: ${code}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 400px; margin: 0 auto; padding: 32px 24px; color: #1f2937;">
+          <p style="font-size: 15px;">Your verification code is:</p>
+          <p style="font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
+          <p style="font-size: 13px; color: #6b7280;">This code expires in 10 minutes.</p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('[Email] Failed to send code:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, id: data?.id };
+  } catch (err) {
+    console.error('[Email] Exception sending code:', err);
+    return { success: false, error: err };
+  }
+}
+

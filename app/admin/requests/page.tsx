@@ -1,11 +1,19 @@
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import SyncVrboButton from './SyncVrboButton';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 // Force dynamic rendering so this page doesn't try to fetch data at build time
 export const dynamic = 'force-dynamic';
 
 export default async function AdminRequestsPage() {
+  const session = await auth();
+  const role = (session?.user as any)?.role;
+  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
+    redirect('/login');
+  }
+
   const requests = await prisma.bookingRequest.findMany({
     take: 100,
   });

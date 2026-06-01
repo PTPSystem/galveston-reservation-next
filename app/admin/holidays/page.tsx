@@ -1,11 +1,19 @@
 import prisma from '@/lib/prisma';
 import { seedDefaultHolidaysIfEmpty, seedDefaultEmailSettingsIfEmpty } from '@/lib/seed-holidays';
 import HolidayCalendarClient from './HolidayCalendarClient';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 // Force dynamic rendering so this page doesn't require DB access at build time
 export const dynamic = 'force-dynamic';
 
 export default async function AdminHolidaysPage() {
+  const session = await auth();
+  const role = (session?.user as any)?.role;
+  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
+    redirect('/login');
+  }
+
   // Automatically seed default holidays and email settings if empty
   await seedDefaultHolidaysIfEmpty();
   await seedDefaultEmailSettingsIfEmpty();

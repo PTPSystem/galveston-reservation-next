@@ -109,12 +109,10 @@ export default function BayfrontRetreatLanding() {
         </div>
       </div>
 
-      {/* Admin Access (temporary) */}
+      {/* Admin */}
       <div className="border-t bg-slate-50">
         <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-800">
-          <strong>Property Manager:</strong>{" "}
-          <a href="/admin/requests" className="text-emerald-600 hover:underline font-medium">Booking Requests</a> •{" "}
-          <a href="/admin/holidays" className="text-emerald-600 hover:underline font-medium">Holiday Calendar</a>
+          <a href="/admin/requests" className="text-emerald-600 hover:underline font-medium">Admin</a>
         </div>
       </div>
     </div>
