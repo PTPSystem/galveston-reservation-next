@@ -1,16 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface LastSyncInfo {
+  id: number;
+  status: string;
+  eventsProcessed: number;
+  eventsAdded: number;
+  eventsUpdated: number;
+  message: string | null;
+  errorDetails: string | null;
+  startedAt: string;
+  completedAt: string;
+}
 
 export default function SyncVrboButton() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [lastSync, setLastSync] = useState<LastSyncInfo | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
 
   // Construct the iCal export URL (works for both local and production)
   const icalExportUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/api/ical/vrbo` 
     : '';
+
+  // Load latest VRBO sync status (from SyncLog) so admins can see when last import ran
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/admin/sync-status');
+        if (res.ok) {
+          const data = await res.json();
+          setLastSync(data.latest);
+        }
+      } catch (e) {
+        // non-fatal
+      } finally {
+        setStatusLoading(false);
+      }
+    };
+    fetchStatus();
+  }, []);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -28,7 +60,14 @@ export default function SyncVrboButton() {
           type: 'success',
           text: data.message || 'VRBO calendar synced successfully!',
         });
-        // Refresh the page after a short delay so the new bookings appear
+
+        // Immediately refresh last-sync display from DB (before the bookings list reloads)
+        fetch('/api/admin/sync-status')
+          .then((r) => r.json())
+          .then((d) => setLastSync(d.latest))
+          .catch(() => {});
+
+        // Refresh the page after a short delay so the new bookings (VRBO rows) appear in the list
         setTimeout(() => {
           window.location.reload();
         }, 1200);
@@ -99,6 +138,24 @@ export default function SyncVrboButton() {
           Export URL for VRBO: {icalExportUrl}
         </div>
       )}
+
+      {/* Last sync status from SyncLog — visible on every admin/requests load */}
+      {!statusLoading && lastSync && (
+        <div className="text-[10px] text-slate-500 text-right">
+          Last VRBO import:{' '}
+          {new Date(lastSync.completedAt || lastSync.startedAt).toLocaleString()}
+          {lastSync.status === 'success' ? (
+            <> — {lastSync.eventsAdded} added, {lastSync.eventsUpdated} updated</>
+          ) : (
+            <> — {lastSync.status}</>
+          )}
+          {lastSync.errorDetails && <span className="text-red-600"> (error logged)</span>}
+        </div>
+      )}
+
+      <div className="text-[10px] text-slate-400 text-right">
+        Auto-sync every ~2h (set CRON_SECRET + VRBO_ICAL_URL on Vercel)
+      </div>
     </div>
   );
 }

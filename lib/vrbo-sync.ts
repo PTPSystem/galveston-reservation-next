@@ -18,6 +18,21 @@ export async function syncVrboCalendar(): Promise<{
   message: string;
 }> {
   if (!VRBO_ICAL_URL) {
+    // Record this as a failed sync so the admin UI (last sync status) can surface the misconfiguration
+    try {
+      await prisma.syncLog.create({
+        data: {
+          syncType: 'vrbo_ical_import',
+          status: 'error',
+          eventsProcessed: 0,
+          message: 'VRBO_ICAL_URL environment variable is not set',
+          errorDetails: 'Set VRBO_ICAL_URL in your environment (Vercel or .env)',
+          startedAt: new Date(),
+        },
+      });
+    } catch (logErr) {
+      console.error('Failed to log missing VRBO_ICAL_URL:', logErr);
+    }
     return {
       success: false,
       eventsProcessed: 0,
