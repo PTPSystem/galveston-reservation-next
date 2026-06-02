@@ -73,6 +73,58 @@ export default function UsersPage() {
     }
   };
 
+  const handleResend = async (inviteId: string, inviteEmail: string) => {
+    if (!confirm(`Resend invite to ${inviteEmail}?`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/invites/${inviteId}/resend`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'Failed to resend invite' });
+      } else {
+        setMessage({ type: 'success', text: `Invite resent to ${inviteEmail}` });
+        fetchInvites();
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Network error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (inviteId: string, inviteEmail: string) => {
+    if (!confirm(`Delete invite for ${inviteEmail}?`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/invites/${inviteId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'Failed to delete invite' });
+      } else {
+        setMessage({ type: 'success', text: `Invite for ${inviteEmail} deleted` });
+        fetchInvites();
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Network error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (status === 'loading') {
     return <div className="p-8">Loading...</div>;
   }
@@ -139,7 +191,22 @@ export default function UsersPage() {
                   {invite.role} • Invited by {invite.inviter?.name || invite.inviter?.email || 'Admin'} • Expires {new Date(invite.expiresAt).toLocaleDateString()}
                 </div>
               </div>
-              <div className="text-emerald-600 text-xs font-medium">Pending</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleResend(invite.id, invite.email)}
+                  disabled={loading}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                >
+                  Resend
+                </button>
+                <button
+                  onClick={() => handleDelete(invite.id, invite.email)}
+                  disabled={loading}
+                  className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
