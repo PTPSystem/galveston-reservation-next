@@ -1,23 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "./lib/auth";
 
-const protectedRoutes = ["/admin"];
+// Simple cookie-based check to avoid pulling in Node.js modules into Edge runtime.
+// Full session/role validation happens in server components and API routes.
+export default function middleware(request: NextRequest) {
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
 
-export default async function middleware(request: NextRequest) {
-  const session = await auth();
+  if (isAdminRoute) {
+    // Check for Auth.js session cookie (works for both dev and prod)
+    const sessionToken =
+      request.cookies.get("authjs.session-token")?.value ||
+      request.cookies.get("__Secure-authjs.session-token")?.value;
 
-  const isProtected = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  );
-
-  if (isProtected && !session) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    if (!sessionToken) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
-  // Role checks can be done inside pages/server components for finer control
   return NextResponse.next();
 }
 
