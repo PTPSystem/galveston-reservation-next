@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // TODO: Create Google Calendar event here in a later step
+    // Google Calendar integration was removed from scope (using bidirectional VRBO iCal + direct CONFIRMED records instead).
 
     return NextResponse.json({
       success: true,

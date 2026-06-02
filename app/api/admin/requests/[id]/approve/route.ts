@@ -48,7 +48,7 @@ export async function POST(
     });
   }
 
-  // TODO: Create calendar event if needed
+  // (No external calendar event creation needed; iCal export + VRBO import + CONFIRMED records handle blocking.)
 
   return NextResponse.json({ success: true, request: updated });
 }
