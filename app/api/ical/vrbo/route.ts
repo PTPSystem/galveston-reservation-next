@@ -28,6 +28,8 @@ export async function GET() {
       'PRODID:-//Bayfront Retreat//NONSGML Booking Calendar//EN',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
+      'X-WR-CALNAME:Bayfront Retreat - Availability',
+      'X-WR-CALDESC:Confirmed bookings at Bayfront Retreat (Jamaica Beach, Galveston)',
     ];
 
     for (const booking of confirmedBookings) {
@@ -42,8 +44,8 @@ export async function GET() {
         `DTSTAMP:${dtStamp}`,
         `DTSTART;VALUE=DATE:${dtStart.substring(0, 8)}`,
         `DTEND;VALUE=DATE:${dtEnd.substring(0, 8)}`,
-        `SUMMARY:Bayfront Retreat - Booked`,
-        `DESCRIPTION:Confirmed booking for ${booking.guestName}`,
+        `SUMMARY:Bayfront Retreat - Reserved`,
+        `DESCRIPTION:This date is booked and unavailable.`,
         'END:VEVENT'
       );
     }
@@ -55,7 +57,8 @@ export async function GET() {
     return new NextResponse(icsContent, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'attachment; filename="bayfront-retreat.ics"',
+        // No attachment disposition so VRBO can subscribe to the feed URL directly
+        'Cache-Control': 'public, max-age=3600', // cache for 1 hour
       },
     });
   } catch (error) {
