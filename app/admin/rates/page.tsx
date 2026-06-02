@@ -15,13 +15,6 @@ export default function RateSettingsPage() {
   const { data: session, status } = useSession();
   const role = (session?.user as any)?.role;
 
-  if (status === 'loading') return <div className="p-8">Loading...</div>;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    // Client redirect
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    return null;
-  }
-
   const [rates, setRates] = useState<RateSettings>({
     weekdayRate: 500,
     weekendRate: 650,
@@ -31,6 +24,13 @@ export default function RateSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Role guard after all hooks
+  useEffect(() => {
+    if (status !== 'loading' && (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role))) {
+      window.location.href = '/login';
+    }
+  }, [status, role]);
 
   useEffect(() => {
     const fetchRates = async () => {
@@ -93,6 +93,10 @@ export default function RateSettingsPage() {
         <div className="max-w-2xl">Loading rate settings...</div>
       </div>
     );
+  }
+
+  if (status !== 'loading' && (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role))) {
+    return <div className="p-8">Redirecting...</div>;
   }
 
   return (

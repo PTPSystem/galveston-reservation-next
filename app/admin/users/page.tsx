@@ -16,17 +16,18 @@ export default function UsersPage() {
   const { data: session, status } = useSession();
   const role = (session?.user as any)?.role;
 
-  if (status === 'loading') return <div className="p-8">Loading...</div>;
-  if (!role || !['ADMIN', 'OWNER'].includes(role)) {
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    return null;
-  }
-
   const [invites, setInvites] = useState<Invite[]>([]);
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER'>('PROPERTY_MANAGER');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Move role check after hooks, use effect for redirect
+  useEffect(() => {
+    if (status !== 'loading' && (!role || !['ADMIN', 'OWNER'].includes(role))) {
+      window.location.href = '/login';
+    }
+  }, [status, role]);
 
   const fetchInvites = async () => {
     try {
@@ -71,6 +72,14 @@ export default function UsersPage() {
       setLoading(false);
     }
   };
+
+  if (status === 'loading') {
+    return <div className="p-8">Loading...</div>;
+  }
+
+  if (!role || !['ADMIN', 'OWNER'].includes(role)) {
+    return <div className="p-8">Redirecting to login...</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
