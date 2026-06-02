@@ -116,9 +116,12 @@ function LoginContent() {
           </p>
         </div>
 
-        <div className="text-center mt-6">
-          <a href="/" className="text-sm text-slate-600 hover:text-slate-800">
+        <div className="text-center mt-6 space-y-2">
+          <a href="/" className="text-sm text-slate-600 hover:text-slate-800 block">
             ← Back to website
+          </a>
+          <a href="/setup" className="text-xs text-emerald-600 hover:underline">
+            First time? Create the initial admin account →
           </a>
         </div>
       </div>
