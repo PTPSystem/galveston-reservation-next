@@ -5,11 +5,11 @@ export default function BayfrontRetreatLanding() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero - Stunning property photo */}
-      <div className="relative min-h-[88vh] flex items-center overflow-hidden bg-slate-950">
-        {/* Fallback dark background in case hero.jpg is not yet added */}
+      <div className="relative min-h-[88vh] flex items-center overflow-hidden bg-gradient-to-br from-blue-950 via-slate-900 to-amber-950">
         {/* Full-bleed hero photo of Bayfront Retreat.
            Place the photo you sent (the aerial view of the yellow house) at:
            public/hero.jpg   (download from chat → save as hero.jpg in the public folder)
+           The gradient below provides a beautiful fallback until the photo is added.
         */}
         <Image
           src="/hero.jpg"
