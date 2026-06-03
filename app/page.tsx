@@ -1,42 +1,70 @@
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
+import Image from "next/image";
 
 export default function BayfrontRetreatLanding() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <div className="relative bg-slate-900 text-white">
-        <div className="max-w-5xl mx-auto px-6 py-20">
+      {/* Hero - Stunning property photo */}
+      <div className="relative min-h-[88vh] flex items-center overflow-hidden bg-slate-950">
+        {/* Fallback dark background in case hero.jpg is not yet added */}
+        {/* Full-bleed hero photo of Bayfront Retreat.
+           Place the photo you sent (the aerial view of the yellow house) at:
+           public/hero.jpg   (download from chat → save as hero.jpg in the public folder)
+        */}
+        <Image
+          src="/hero.jpg"
+          alt="Bayfront Retreat — beautiful yellow waterfront home with expansive multi-level decks overlooking Galveston Bay in Jamaica Beach, Texas at golden hour"
+          fill
+          className="object-cover"
+          priority
+        />
+
+        {/* Strong gradient overlay for excellent text contrast and depth (photo is bright sky + light house) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/65" />
+        {/* Extra left-side depth for the title area */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/10 to-transparent" />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/30 px-3 py-1 rounded-full text-sm mb-4 text-white font-medium">
+            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/20 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas
             </div>
-            
-            <h1 className="text-6xl font-semibold tracking-tighter mb-6 text-white">
+
+            <h1 className="text-6xl sm:text-7xl font-semibold tracking-tighter mb-6 text-white drop-shadow-md">
               Bayfront Retreat
             </h1>
-            
-            <p className="text-2xl text-slate-200 mb-8">
+
+            <p className="text-2xl sm:text-3xl text-white/95 mb-9 leading-tight drop-shadow-sm">
               Private waterfront home on Galveston Bay.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <a 
-                href="#availability" 
-                className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:bg-slate-100 transition-colors text-lg"
+              <a
+                href="#availability"
+                className="inline-flex items-center justify-center px-9 py-4 bg-white text-slate-950 rounded-2xl font-semibold hover:bg-white/95 active:bg-white transition-all text-lg shadow-xl hover:shadow-2xl"
               >
                 Request to Book
               </a>
-              <a 
-                href="#how-it-works" 
-                className="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 rounded-2xl font-semibold text-lg"
+              <a
+                href="#how-it-works"
+                className="inline-flex items-center justify-center px-9 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-2xl font-semibold hover:bg-white/20 active:bg-white/25 transition-all text-lg"
               >
                 How It Works
               </a>
             </div>
-            <p className="mt-4 text-sm text-white/90">
+
+            <p className="mt-5 text-sm text-white/80 max-w-md">
               All bookings are subject to host approval. We do not offer instant reservations.
             </p>
+          </div>
+        </div>
+
+        {/* Subtle scroll cue */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:block">
+          <div className="flex flex-col items-center text-white/60 text-xs tracking-[2px]">
+            SCROLL TO EXPLORE
+            <div className="mt-1 h-px w-6 bg-white/40" />
           </div>
         </div>
       </div>
