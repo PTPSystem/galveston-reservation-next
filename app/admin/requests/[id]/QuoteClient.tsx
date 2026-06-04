@@ -13,6 +13,7 @@ interface BookingRequest {
   numGuests: number;
   specialRequests: string | null;
   status: string;
+  source: string;
   pricing: any;
   adjustments: any[];
 }
@@ -50,11 +51,14 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   const [showDailyModal, setShowDailyModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedNightIndex, setSelectedNightIndex] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
   // Local status so we can update it live (e.g. PENDING → REVIEWING automatically)
   const [currentStatus, setCurrentStatus] = useState(bookingRequest.status);
+
+  const isSyncedVRBO = bookingRequest.source === 'VRBO';
 
   // Custom modal form state
   const [customType, setCustomType] = useState<'daily' | 'stay'>('stay');
@@ -436,6 +440,29 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
     }
   };
 
+  // Delete the event (booking request) entirely
+  const handleDelete = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/admin/requests/${bookingRequest.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        alert('Event deleted.');
+        router.push('/admin/requests');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to delete event.');
+      }
+    } catch (e) {
+      alert('Error deleting event');
+    } finally {
+      setIsSaving(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   // Save as Draft (persist current pricing snapshot without changing status)
   const handleSaveDraft = async () => {
     setIsSaving(true);
@@ -535,8 +562,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                 {nights.map((night, index) => (
                   <tr
                     key={night.date}
-                    onClick={() => openDailyAdjustment(index)}
-                    className="cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={!isSyncedVRBO ? () => openDailyAdjustment(index) : undefined}
+                    className={`${!isSyncedVRBO ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
                   >
                     <td className="px-4 sm:px-6 py-3 font-medium text-slate-900">{formatDateLabel(night.date)}</td>
                     <td className="px-3 sm:px-4 py-3">
@@ -559,10 +586,12 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                       )}
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right font-semibold text-slate-900">${night.finalNight.toFixed(2)}</td>
-                    <td className="px-2 sm:px-4 py-3" onClick={(e) => { e.stopPropagation(); openDailyAdjustment(index); }}>
-                      <button className="text-emerald-600 hover:text-emerald-700 p-1">
-                        <i className="fa-solid fa-edit text-sm"></i>
-                      </button>
+                    <td className="px-2 sm:px-4 py-3" onClick={!isSyncedVRBO ? (e) => { e.stopPropagation(); openDailyAdjustment(index); } : undefined}>
+                      {!isSyncedVRBO && (
+                        <button className="text-emerald-600 hover:text-emerald-700 p-1">
+                          <i className="fa-solid fa-edit text-sm"></i>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -575,8 +604,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
             {nights.map((night, index) => (
               <div
                 key={night.date}
-                onClick={() => openDailyAdjustment(index)}
-                className="p-4 active:bg-slate-50 cursor-pointer"
+                onClick={!isSyncedVRBO ? () => openDailyAdjustment(index) : undefined}
+                className={`p-4 ${!isSyncedVRBO ? 'active:bg-slate-50 cursor-pointer' : ''}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium text-slate-900">{formatDateLabel(night.date)}</div>
@@ -608,10 +637,17 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
                   </div>
                 </div>
 
-                <div className="mt-2.5 text-emerald-600 text-xs flex items-center gap-1.5">
-                  <i className="fa-solid fa-edit"></i>
-                  <span>Tap to adjust this night</span>
-                </div>
+                {!isSyncedVRBO && (
+                  <div className="mt-2.5 text-emerald-600 text-xs flex items-center gap-1.5">
+                    <i className="fa-solid fa-edit"></i>
+                    <span>Tap to adjust this night</span>
+                  </div>
+                )}
+                {isSyncedVRBO && (
+                  <div className="mt-2.5 text-slate-500 text-xs">
+                    Synced VRBO event — read only
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -751,39 +787,58 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
           {/* Actions */}
           <div className="space-y-3">
-            <button
-              onClick={handleApprove}
-              disabled={isSaving}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 disabled:opacity-70"
-            >
-              <i className="fa-solid fa-check"></i>
-              Confirm &amp; Send Quote
-            </button>
+            {!isSyncedVRBO && (
+              <>
+                <button
+                  onClick={handleApprove}
+                  disabled={isSaving}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  <i className="fa-solid fa-check"></i>
+                  Confirm &amp; Send Quote
+                </button>
 
-            <button
-              onClick={handleSaveDraft}
-              disabled={isSaving}
-              className="w-full py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl"
-            >
-              Save as Draft
-            </button>
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={isSaving}
+                  className="w-full py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-xl"
+                >
+                  Save as Draft
+                </button>
 
-            {currentStatus === 'PENDING' && (
-              <button
-                onClick={handleMarkAsReviewing}
-                disabled={isSaving}
-                className="w-full py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
-              >
-                Mark as Reviewing
-              </button>
+                {currentStatus === 'PENDING' && (
+                  <button
+                    onClick={handleMarkAsReviewing}
+                    disabled={isSaving}
+                    className="w-full py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
+                  >
+                    Mark as Reviewing
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={isSaving}
+                  className="w-full py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-200"
+                >
+                  Reject Request
+                </button>
+              </>
             )}
 
+            {isSyncedVRBO && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+                This is a VRBO-synced booking (source=VRBO). It cannot be reviewed, priced, or confirmed through this interface.
+              </div>
+            )}
+
+            {/* Delete always available */}
             <button
-              onClick={() => setShowRejectModal(true)}
+              onClick={() => setShowDeleteModal(true)}
               disabled={isSaving}
-              className="w-full py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-200"
+              className="w-full py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-300"
             >
-              Reject Request
+              Delete Event
             </button>
           </div>
         </div>
@@ -938,6 +993,26 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
             <div className="flex justify-end gap-3 px-6 py-4 border-t bg-slate-50 rounded-b-2xl">
               <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700">Cancel</button>
               <button onClick={handleReject} disabled={isSaving} className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-70">Reject Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <h3 className="font-semibold text-lg mb-2 text-slate-900">Delete this event?</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                This will permanently remove the booking request and all its adjustments. This action cannot be undone.
+              </p>
+              <p className="text-sm text-red-600">Are you sure?</p>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 py-4 border-t bg-slate-50 rounded-b-2xl">
+              <button onClick={() => setShowDeleteModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700">Cancel</button>
+              <button onClick={handleDelete} disabled={isSaving} className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-70">Delete Event</button>
             </div>
           </div>
         </div>

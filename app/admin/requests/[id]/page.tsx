@@ -36,6 +36,7 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
     updatedAt: bookingRequest.updatedAt.toISOString(),
     approvedAt: bookingRequest.approvedAt?.toISOString() || null,
     rejectedAt: bookingRequest.rejectedAt?.toISOString() || null,
+    source: bookingRequest.source,
     adjustments: bookingRequest.adjustments.map(adj => ({
       ...adj,
       createdAt: adj.createdAt.toISOString(),

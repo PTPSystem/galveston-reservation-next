@@ -20,9 +20,9 @@ export default function BayfrontRetreatLanding() {
         />
 
         {/* Strong gradient overlay for excellent text contrast and depth (photo is bright sky + light house) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/65" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/50 to-black/75" />
         {/* Extra left-side depth for the title area */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-transparent" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
           <div className="max-w-2xl">
@@ -35,7 +35,7 @@ export default function BayfrontRetreatLanding() {
               Bayfront Retreat
             </h1>
 
-            <p className="text-2xl sm:text-3xl text-white/95 mb-9 leading-tight drop-shadow-sm">
+            <p className="text-3xl sm:text-4xl text-white mb-9 leading-tight drop-shadow-md">
               Private waterfront home on Galveston Bay.
             </p>
 
@@ -54,7 +54,7 @@ export default function BayfrontRetreatLanding() {
               </a>
             </div>
 
-            <p className="mt-5 text-sm text-white/80 max-w-md">
+            <p className="mt-5 text-sm text-white max-w-md drop-shadow-sm">
               All bookings are subject to host approval. We do not offer instant reservations.
             </p>
           </div>
