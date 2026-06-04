@@ -25,8 +25,9 @@ export default function BayfrontRetreatLanding() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/30 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
+          {/* Dark semi-transparent container behind text for excellent readability over any part of the photo */}
+          <div className="max-w-2xl bg-black/55 rounded-3xl p-6 sm:p-8 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md border border-white/40 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas
             </div>
@@ -48,7 +49,7 @@ export default function BayfrontRetreatLanding() {
               </a>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center px-9 py-4 bg-white/10 backdrop-blur-md border border-white/30 text-white rounded-2xl font-semibold hover:bg-white/20 active:bg-white/25 transition-all text-lg"
+                className="inline-flex items-center justify-center px-9 py-4 bg-white/20 backdrop-blur-md border border-white/40 text-white rounded-2xl font-semibold hover:bg-white/30 active:bg-white/40 transition-all text-lg"
               >
                 How It Works
               </a>
