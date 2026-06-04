@@ -25,18 +25,17 @@ export default function BayfrontRetreatLanding() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
-          {/* Dark semi-transparent container behind text for excellent readability over any part of the photo */}
-          <div className="max-w-2xl bg-black/55 rounded-3xl p-6 sm:p-8 backdrop-blur-sm">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md border border-white/40 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/50 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas
             </div>
 
-            <h1 className="text-6xl sm:text-7xl font-semibold tracking-tighter mb-6 text-white drop-shadow-md">
+            <h1 className="text-6xl sm:text-7xl font-semibold tracking-tighter mb-6 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Bayfront Retreat
             </h1>
 
-            <p className="text-3xl sm:text-4xl text-white mb-9 leading-tight drop-shadow-md">
+            <p className="text-3xl sm:text-4xl text-white mb-9 leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               Private waterfront home on Galveston Bay.
             </p>
 
@@ -49,13 +48,13 @@ export default function BayfrontRetreatLanding() {
               </a>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center px-9 py-4 bg-white/20 backdrop-blur-md border border-white/40 text-white rounded-2xl font-semibold hover:bg-white/30 active:bg-white/40 transition-all text-lg"
+                className="inline-flex items-center justify-center px-9 py-4 bg-black/60 backdrop-blur-md border border-white/50 text-white rounded-2xl font-semibold hover:bg-black/70 active:bg-black/80 transition-all text-lg"
               >
                 How It Works
               </a>
             </div>
 
-            <p className="mt-5 text-sm text-white max-w-md drop-shadow-sm">
+            <p className="mt-5 text-sm text-white max-w-md drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
               All bookings are subject to host approval. We do not offer instant reservations.
             </p>
           </div>
