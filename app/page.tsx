@@ -78,7 +78,7 @@ export default function BayfrontRetreatLanding() {
           </div>
           <div>
             <div className="font-medium text-slate-800">Guests</div>
-            <div>Up to 10 guests</div>
+            <div>Up to 12 guests</div>
           </div>
           <div>
             <div className="font-medium text-slate-800">Bedrooms</div>
