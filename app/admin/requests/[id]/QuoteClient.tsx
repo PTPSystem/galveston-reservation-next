@@ -653,48 +653,50 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
           </div>
 
           {/* Quick Stay Adjustments - pure stay level, never touch nightly rows */}
-          <div className="p-4 sm:p-6 border-t bg-slate-50">
-            <div className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-900">
-              <i className="fa-solid fa-magic"></i> Quick Stay Adjustments
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {quickActions.map((action, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => applyStayAdjustment(action.amount, action.reason)}
-                  disabled={isSaving}
-                  className="px-3 py-1.5 text-sm bg-white border border-slate-300 hover:bg-emerald-50 hover:border-emerald-200 rounded-lg flex items-center gap-2 text-slate-800 disabled:opacity-60"
-                >
-                  <i className={`fa-solid fa-${action.icon} text-emerald-600`}></i>
-                  {action.label}
-                </button>
-              ))}
-              <button
-                onClick={openCustomModal}
-                disabled={isSaving}
-                className="px-3 py-1.5 text-sm bg-white border border-slate-300 hover:bg-slate-100 rounded-lg flex items-center gap-2 text-slate-800 disabled:opacity-60"
-              >
-                <i className="fa-solid fa-edit"></i> Custom Adjustment
-              </button>
-            </div>
-
-            {/* Show applied stay adjustments clearly (separate from the night table) */}
-            {stayAdjustments.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <div className="text-xs font-medium text-slate-600 mb-2">Applied Stay Adjustments (do not affect individual nights)</div>
-                <div className="space-y-1 text-sm">
-                  {stayAdjustments.map((adj, idx) => (
-                    <div key={idx} className="flex justify-between text-slate-800">
-                      <span className={adj.amount < 0 ? 'text-emerald-600' : 'text-orange-600'}>
-                        {adj.amount > 0 ? '+' : ''}${adj.amount.toFixed(2)}
-                      </span>
-                      <span className="text-slate-600 text-xs truncate max-w-[260px]">{adj.reason}</span>
-                    </div>
-                  ))}
-                </div>
+          {!isSyncedVRBO && (
+            <div className="p-4 sm:p-6 border-t bg-slate-50">
+              <div className="font-semibold text-sm mb-3 flex items-center gap-2 text-slate-900">
+                <i className="fa-solid fa-magic"></i> Quick Stay Adjustments
               </div>
-            )}
-          </div>
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => applyStayAdjustment(action.amount, action.reason)}
+                    disabled={isSaving}
+                    className="px-3 py-1.5 text-sm bg-white border border-slate-300 hover:bg-emerald-50 hover:border-emerald-200 rounded-lg flex items-center gap-2 text-slate-800 disabled:opacity-60"
+                  >
+                    <i className={`fa-solid fa-${action.icon} text-emerald-600`}></i>
+                    {action.label}
+                  </button>
+                ))}
+                <button
+                  onClick={openCustomModal}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-sm bg-white border border-slate-300 hover:bg-slate-100 rounded-lg flex items-center gap-2 text-slate-800 disabled:opacity-60"
+                >
+                  <i className="fa-solid fa-edit"></i> Custom Adjustment
+                </button>
+              </div>
+
+              {/* Show applied stay adjustments clearly (separate from the night table) */}
+              {stayAdjustments.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <div className="text-xs font-medium text-slate-600 mb-2">Applied Stay Adjustments (do not affect individual nights)</div>
+                  <div className="space-y-1 text-sm">
+                    {stayAdjustments.map((adj, idx) => (
+                      <div key={idx} className="flex justify-between text-slate-800">
+                        <span className={adj.amount < 0 ? 'text-emerald-600' : 'text-orange-600'}>
+                          {adj.amount > 0 ? '+' : ''}${adj.amount.toFixed(2)}
+                        </span>
+                        <span className="text-slate-600 text-xs truncate max-w-[260px]">{adj.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar */}
