@@ -25,7 +25,7 @@ export default function BayfrontRetreatLanding() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-20">
-          <div className="max-w-2xl">
+          <div className="max-w-2xl hero-text">
             <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/50 px-4 py-1.5 rounded-full text-sm mb-5 text-white font-medium shadow-sm">
               <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
               Jamaica Beach, Galveston Bay, Texas

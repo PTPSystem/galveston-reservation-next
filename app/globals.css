@@ -68,4 +68,19 @@ button {
   color: #ffffff !important;
 }
 
+/* Force white text in hero (over image) - the general p/div rules were overriding text-white */
+.hero-text,
+.hero-text h1,
+.hero-text p,
+.hero-text div,
+.hero-text span,
+.hero-text a:not(.bg-white) {
+  color: #ffffff !important;
+}
+
+/* But keep the primary button dark text on white bg */
+.hero-text a.bg-white {
+  color: #0f172a !important; /* slate-900 */
+}
+
 
