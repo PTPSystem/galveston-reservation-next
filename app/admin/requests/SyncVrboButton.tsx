@@ -154,7 +154,7 @@ export default function SyncVrboButton() {
       )}
 
       <div className="text-[10px] text-slate-400 text-right">
-        Auto-sync every ~2h (set CRON_SECRET + VRBO_ICAL_URL on Vercel)
+        Auto-sync daily at midnight UTC (set CRON_SECRET + VRBO_ICAL_URL on Vercel)
       </div>
     </div>
   );
