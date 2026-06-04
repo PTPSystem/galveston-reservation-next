@@ -3,10 +3,17 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Only CONFIRMED bookings block dates for new requests
+    // Only CONFIRMED bookings block dates for new requests.
+    // Filter to only periods that end after today (i.e. currently or future unavailable).
+    // This ensures the front-page "Currently unavailable" list and calendar disabled days
+    // never show historical/past periods.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const confirmedBookings = await prisma.bookingRequest.findMany({
       where: {
         status: 'CONFIRMED',
+        endDate: { gt: today },
       },
       select: {
         startDate: true,
