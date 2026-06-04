@@ -12,7 +12,7 @@ All bookings go through a **request → review/quote → approve** workflow (no 
 - **Exact pricing engine** — $500 weekday (M-Th), $650 weekend (F-Su), $700 holiday, $350 weekly discount per 7 nights. Guest total = base + 9% Jamaica Beach tax + 6% Texas tax + $300 cleaning fee.
 - **Internal split on quote** — 22% management fee + owner proceeds (5-line breakdown visible to admin).
 - **Request-to-approve workflow** — PENDING → REVIEWING (auto on open) → CONFIRMED (or REJECTED/CANCELLED). "Confirm and Send Quote" emails full breakdown + dates to guest + internals to PM/Owner.
-- **Bidirectional VRBO iCal** — Manual "Sync VRBO Calendar (Import)" + one-click "Copy iCal Export Link" for VRBO side. Automatic sync via Vercel Cron (every 2 hours). Imported bookings land as CONFIRMED with `source=VRBO` and block dates.
+- **Bidirectional VRBO iCal** — Manual "Sync VRBO Calendar (Import)" + one-click "Copy iCal Export Link" for VRBO side. Automatic sync via Vercel Cron (daily at midnight UTC, Hobby plan limit). Imported bookings land as CONFIRMED with `source=VRBO` and block dates.
 - **Role-based admin** — ADMIN (everything + invite admins), OWNER (everything except invite ADMIN), PROPERTY_MANAGER (bookings, rates, holidays only).
 - **Easy user management** — Invite by email (7-day token), click link to set password, 30-day email reconfirmation (6-digit code), first-user bootstrap at `/setup`.
 - **Mobile-first admin UI** — Hamburger drawer, card-based lists (requests, quote nights, holidays) replacing wide tables, sticky actions, large tap targets.
@@ -192,7 +192,9 @@ Add all the variables listed in the Environment Variables section.
 - `CRON_SECRET`
 - `VRBO_ICAL_URL`
 
-After setting them, redeploy. The schedule is defined in `vercel.json`.
+After setting them, redeploy. The schedule is defined in `vercel.json` (daily at midnight UTC on Hobby plan; Pro unlocks more frequent).
+
+Note: Vercel Hobby accounts are limited to one cron job execution per day.
 
 **First deploy gotcha**: If no users exist yet, visit `https://your-app.vercel.app/setup` to bootstrap the first ADMIN.
 
@@ -258,4 +260,4 @@ For the most up-to-date instructions see the "Vercel Cron + VRBO Sync" section a
 
 ---
 
-*Last major README update: after completion of automatic VRBO cron + last-sync UI + role-based accounts.*
+*Last major README update: after completion of automatic VRBO cron (daily for Hobby) + last-sync UI + role-based accounts.*
