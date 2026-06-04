@@ -118,16 +118,18 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   }, [currentStatus, bookingRequest.id]);
 
   function generateNights(req: BookingRequest, holidays: HolidayPeriod[]): NightRow[] {
-    const start = new Date(req.startDate);
-    const end = new Date(req.endDate);
+    // Parse dates as UTC to avoid timezone shifts in day classification (getDay vs getUTCDay)
+    // Night dates are stored as YYYY-MM-DD strings representing the calendar date of the night (UTC-based for consistency).
+    const start = new Date(req.startDate + 'T00:00:00Z');
+    const end = new Date(req.endDate + 'T00:00:00Z');
     const rows: NightRow[] = [];
 
-    for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
       let rate = 500;
       let type: 'Weekday' | 'Weekend' | 'Holiday' = 'Weekday';
 
-      const day = d.getDay();
+      const day = d.getUTCDay();
       if (day === 5 || day === 6 || day === 0) {
         rate = 650;
         type = 'Weekend';
@@ -471,8 +473,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   };
 
   const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    // Use UTC to ensure the weekday label matches the UTC-based type classification (avoids TZ shift for Monday etc.)
+    const d = new Date(dateStr + 'T00:00:00Z');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
   };
 
   return (
