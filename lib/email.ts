@@ -208,14 +208,16 @@ export async function sendQuoteEmail({
                 <td style="padding: 8px 0 4px 0; font-weight: 500;">Subtotal after Adjustments</td>
                 <td style="padding: 8px 0 4px 0; text-align: right; font-weight: 500;">$${subtotal}</td>
               </tr>
+              ${parseFloat(jamaicaTax) > 0 ? `
               <tr>
                 <td style="padding: 4px 0;">Jamaica Beach Tax (9%)</td>
                 <td style="padding: 4px 0; text-align: right;">$${jamaicaTax}</td>
-              </tr>
+              </tr>` : ''}
+              ${parseFloat(texasTax) > 0 ? `
               <tr>
                 <td style="padding: 4px 0;">Texas State Tax (6%)</td>
                 <td style="padding: 4px 0; text-align: right;">$${texasTax}</td>
-              </tr>
+              </tr>` : ''}
               <tr>
                 <td style="padding: 4px 0;">Cleaning Fee</td>
                 <td style="padding: 4px 0; text-align: right;">$${cleaning}</td>

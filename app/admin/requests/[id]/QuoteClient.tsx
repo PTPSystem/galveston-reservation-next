@@ -60,6 +60,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
   const isSyncedVRBO = bookingRequest.source === 'VRBO';
 
+  // Tax exemptions for friends & family (do not charge or remit city/state taxes)
+  const [excludeCityTax, setExcludeCityTax] = useState(false);
+  const [excludeStateTax, setExcludeStateTax] = useState(false);
+
   // Custom modal form state
   const [customType, setCustomType] = useState<'daily' | 'stay'>('stay');
   const [customAmount, setCustomAmount] = useState('-150');
@@ -93,6 +97,19 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
       setStayAdjustments(stayFromDb);
     }
   }, [bookingRequest.adjustments]);
+
+  // Hydrate tax exemption checkboxes from saved pricing snapshot (for friends/family cases)
+  useEffect(() => {
+    const p = bookingRequest.pricing;
+    if (p && typeof p === 'object') {
+      if (typeof p.excludeCityTax === 'boolean') {
+        setExcludeCityTax(p.excludeCityTax);
+      }
+      if (typeof p.excludeStateTax === 'boolean') {
+        setExcludeStateTax(p.excludeStateTax);
+      }
+    }
+  }, [bookingRequest.pricing]);
 
   // Auto-transition PENDING → REVIEWING when admin opens this screen
   // (matches: "Reviewing - looked at but not approved and send")
@@ -164,6 +181,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   // Exact calculation per user's spec:
   // Base + nightly adj sum + stay adj sum → taxes (9% + 6%) on that net → + cleaning
   // 22% management is on the net after both adjustment types ("Base-discount")
+  // Tax exclusions (for friends/family) set the corresponding tax to $0 (no charge, no remit).
   const calculations = useMemo(() => {
     const baseRateSum = nights.reduce((sum, n) => sum + n.base, 0);
     const nightlyAdjSum = nights.reduce((sum, n) => sum + n.nightlyAdjustment, 0);
@@ -171,8 +189,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
     const netAfterAdjustments = baseRateSum + nightlyAdjSum + stayAdjSum;
 
-    const jamaicaBeachTax = Math.round(netAfterAdjustments * 0.09 * 100) / 100;
-    const texasStateTax = Math.round(netAfterAdjustments * 0.06 * 100) / 100;
+    const jamaicaBeachTax = excludeCityTax ? 0 : Math.round(netAfterAdjustments * 0.09 * 100) / 100;
+    const texasStateTax = excludeStateTax ? 0 : Math.round(netAfterAdjustments * 0.06 * 100) / 100;
     const cleaning = 300;
 
     const totalGuest = netAfterAdjustments + jamaicaBeachTax + texasStateTax + cleaning;
@@ -195,7 +213,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
       managementFee,
       ownerProceeds,
     };
-  }, [nights, stayAdjustments]);
+  }, [nights, stayAdjustments, excludeCityTax, excludeStateTax]);
 
   const formattedDateRange = `${new Date(bookingRequest.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(bookingRequest.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
 
@@ -356,6 +374,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
         managementFee: calculations.managementFee,
         ownerProceeds: calculations.ownerProceeds,
         nights: nights.length,
+        // Tax exemptions (friends/family) — when true the corresponding tax above is 0
+        excludeCityTax,
+        excludeStateTax,
         // Per-night breakdown only reflects nightly layer (stay is separate)
         breakdown: nights.map(n => ({
           date: n.date,
@@ -479,6 +500,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
         managementFee: calculations.managementFee,
         ownerProceeds: calculations.ownerProceeds,
         nights: nights.length,
+        // Tax exemptions (friends/family)
+        excludeCityTax,
+        excludeStateTax,
         stayAdjustments,
       };
 
@@ -701,6 +725,39 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
         {/* Right Sidebar */}
         <div className="xl:col-span-4 space-y-6">
+          {/* Tax exemptions for friends & family - on top as requested */}
+          {!isSyncedVRBO && (
+            <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-5">
+              <div className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <i className="fa-solid fa-user-friends text-emerald-600"></i>
+                Tax exemptions (friends &amp; family)
+              </div>
+              <div className="space-y-2 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={excludeCityTax}
+                    onChange={(e) => setExcludeCityTax(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                  />
+                  <span>Exclude city tax (9% Jamaica Beach)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={excludeStateTax}
+                    onChange={(e) => setExcludeStateTax(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600"
+                  />
+                  <span>Exclude state tax (6% Texas)</span>
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-2 leading-tight">
+                When checked, these taxes are not added to the guest total and will not be remitted.
+              </p>
+            </div>
+          )}
+
           {/* Guest Price Summary - explicit separation of nightly vs stay adjustments */}
           <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
             <h3 className="font-semibold mb-4 text-slate-900">Guest Price Summary</h3>
@@ -733,11 +790,17 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
               </div>
 
               <div className="pt-2 border-t flex justify-between text-slate-800">
-                <span>Jamaica Beach Tax (9%)</span>
+                <span>
+                  Jamaica Beach Tax (9%)
+                  {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' — waived' : ''}
+                </span>
                 <span className="font-semibold text-slate-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-800">
-                <span>Texas State Tax (6%)</span>
+                <span>
+                  Texas State Tax (6%)
+                  {excludeStateTax && calculations.texasStateTax === 0 ? ' — waived' : ''}
+                </span>
                 <span className="font-semibold text-slate-900">${calculations.texasStateTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-800">
@@ -760,11 +823,17 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-amber-700">Tax Remit to TX</span>
+                <span className="text-amber-700">
+                  Tax Remit to TX
+                  {excludeStateTax && calculations.texasStateTax === 0 ? ' (waived)' : ''}
+                </span>
                 <span className="font-medium text-amber-900">${calculations.texasStateTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-amber-700">Tax Remit to Jamaica Beach</span>
+                <span className="text-amber-700">
+                  Tax Remit to Jamaica Beach
+                  {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' (waived)' : ''}
+                </span>
                 <span className="font-medium text-amber-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
