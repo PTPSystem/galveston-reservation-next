@@ -26,6 +26,14 @@ interface HolidayPeriod {
   rate: number;
 }
 
+interface RateSettings {
+  weekdayRate: number;
+  weekendRate: number;
+  holidayRate: number;
+  weeklyDiscount: number;
+  cleaningFee: number;
+}
+
 interface NightRow {
   date: string;
   type: 'Weekday' | 'Weekend' | 'Holiday';
@@ -43,9 +51,10 @@ interface StayAdjustment {
 interface QuoteClientProps {
   bookingRequest: BookingRequest;
   holidayPeriods: HolidayPeriod[];
+  rateSettings: RateSettings;
 }
 
-export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteClientProps) {
+export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettings }: QuoteClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [showDailyModal, setShowDailyModal] = useState(false);
@@ -75,7 +84,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
   // Live night-by-night state (only nightly adjustments affect these rows)
   const [nights, setNights] = useState<NightRow[]>(() => {
-    return generateNights(bookingRequest, holidayPeriods);
+    return generateNights(bookingRequest, holidayPeriods, rateSettings);
   });
 
   // Separate stay-level adjustments (never distributed to individual nights)
@@ -138,7 +147,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
     }
   }, [currentStatus, bookingRequest.id]);
 
-  function generateNights(req: BookingRequest, holidays: HolidayPeriod[]): NightRow[] {
+  function generateNights(req: BookingRequest, holidays: HolidayPeriod[], rates: RateSettings): NightRow[] {
     // Parse dates as UTC to avoid timezone shifts in day classification (getDay vs getUTCDay)
     // Night dates are stored as YYYY-MM-DD strings representing the calendar date of the night (UTC-based for consistency).
     const start = new Date(req.startDate + 'T00:00:00Z');
@@ -147,12 +156,12 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
     for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
-      let rate = 500;
+      let rate = rates.weekdayRate;
       let type: 'Weekday' | 'Weekend' | 'Holiday' = 'Weekday';
 
       const day = d.getUTCDay();
       if (day === 5 || day === 6 || day === 0) {
-        rate = 650;
+        rate = rates.weekendRate;
         type = 'Weekend';
       }
 
@@ -163,7 +172,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
       });
 
       if (isHoliday) {
-        rate = 700;
+        rate = rates.holidayRate;
         type = 'Holiday';
       }
 
@@ -182,6 +191,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   // Base + nightly adj sum + stay adj sum → taxes (9% + 6%) on that net → + cleaning
   // 22% management is on the net after both adjustment types ("Base-discount")
   // Tax exclusions (for friends/family) set the corresponding tax to $0 (no charge, no remit).
+  // Nightly base rates, weekly discount amount, and cleaning fee come from current RateSettings.
   const calculations = useMemo(() => {
     const baseRateSum = nights.reduce((sum, n) => sum + n.base, 0);
     const nightlyAdjSum = nights.reduce((sum, n) => sum + n.nightlyAdjustment, 0);
@@ -191,7 +201,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
 
     const jamaicaBeachTax = excludeCityTax ? 0 : Math.round(netAfterAdjustments * 0.09 * 100) / 100;
     const texasStateTax = excludeStateTax ? 0 : Math.round(netAfterAdjustments * 0.06 * 100) / 100;
-    const cleaning = 300;
+    const cleaning = rateSettings.cleaningFee ?? 300;
 
     const totalGuest = netAfterAdjustments + jamaicaBeachTax + texasStateTax + cleaning;
 
@@ -213,7 +223,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
       managementFee,
       ownerProceeds,
     };
-  }, [nights, stayAdjustments, excludeCityTax, excludeStateTax]);
+  }, [nights, stayAdjustments, excludeCityTax, excludeStateTax, rateSettings]);
 
   const formattedDateRange = `${new Date(bookingRequest.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(bookingRequest.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
 
@@ -347,7 +357,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods }: QuoteCli
   // Quick action buttons - all are pure STAY adjustments (weekly discount is explicitly a stay adjustment)
   const quickActions = [
     { label: '-$200 Loyalty', amount: -200, reason: 'Loyalty discount - returning guest', icon: 'minus' },
-    { label: '-$350 Weekly', amount: -350, reason: '7-night weekly discount', icon: 'minus' },
+    { label: `-${rateSettings.weeklyDiscount} Weekly`, amount: -rateSettings.weeklyDiscount, reason: '7-night weekly discount', icon: 'minus' },
     { label: '+$150 Peak', amount: 150, reason: 'Peak demand - holiday weekend', icon: 'plus' },
   ];
 

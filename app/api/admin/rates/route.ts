@@ -13,6 +13,7 @@ export async function GET() {
           weekendRate: 650,
           holidayRate: 700,
           weeklyDiscount: 350,
+          cleaningFee: 300,
         },
       });
     }
@@ -28,19 +29,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { weekdayRate, weekendRate, holidayRate, weeklyDiscount } = body;
+    const { weekdayRate, weekendRate, holidayRate, weeklyDiscount, cleaningFee } = body;
 
     // Basic validation
     if (
       typeof weekdayRate !== 'number' ||
       typeof weekendRate !== 'number' ||
       typeof holidayRate !== 'number' ||
-      typeof weeklyDiscount !== 'number'
+      typeof weeklyDiscount !== 'number' ||
+      typeof cleaningFee !== 'number'
     ) {
       return NextResponse.json({ error: 'All rate fields are required and must be numbers' }, { status: 400 });
     }
 
-    if (weekdayRate < 0 || weekendRate < 0 || holidayRate < 0 || weeklyDiscount < 0) {
+    if (weekdayRate < 0 || weekendRate < 0 || holidayRate < 0 || weeklyDiscount < 0 || cleaningFee < 0) {
       return NextResponse.json({ error: 'Rates cannot be negative' }, { status: 400 });
     }
 
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
           weekendRate,
           holidayRate,
           weeklyDiscount,
+          cleaningFee,
         },
       });
       return NextResponse.json(updated);
@@ -64,6 +67,7 @@ export async function POST(request: NextRequest) {
           weekendRate,
           holidayRate,
           weeklyDiscount,
+          cleaningFee,
         },
       });
       return NextResponse.json(created);

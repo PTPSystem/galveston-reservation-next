@@ -141,6 +141,7 @@ model RateSetting {
   weekendRate     Int      @default(650)
   holidayRate     Int      @default(700)
   weeklyDiscount  Int      @default(350)
+  cleaningFee     Int      @default(300)
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("rate_settings")

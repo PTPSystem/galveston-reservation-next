@@ -9,6 +9,7 @@ interface RateSettings {
   weekendRate: number;
   holidayRate: number;
   weeklyDiscount: number;
+  cleaningFee: number;
 }
 
 export default function RateSettingsPage() {
@@ -20,6 +21,7 @@ export default function RateSettingsPage() {
     weekendRate: 650,
     holidayRate: 700,
     weeklyDiscount: 350,
+    cleaningFee: 300,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +45,7 @@ export default function RateSettingsPage() {
             weekendRate: data.weekendRate,
             holidayRate: data.holidayRate,
             weeklyDiscount: data.weeklyDiscount,
+            cleaningFee: data.cleaningFee ?? 300,
           });
         }
       } catch (error) {
@@ -74,6 +77,7 @@ export default function RateSettingsPage() {
           weekendRate: updated.weekendRate,
           holidayRate: updated.holidayRate,
           weeklyDiscount: updated.weeklyDiscount,
+          cleaningFee: updated.cleaningFee ?? 300,
         });
         setMessage({ type: 'success', text: 'Rate settings saved successfully!' });
       } else {
@@ -105,7 +109,7 @@ export default function RateSettingsPage() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">Rates &amp; Pricing</h1>
           <p className="text-slate-600 mt-2">
-            Set your base nightly rates and weekly discount. These rates are used when calculating quotes.
+            Set your base nightly rates, weekly discount, and cleaning fee. These are used when calculating quotes.
           </p>
         </div>
 
@@ -188,6 +192,23 @@ export default function RateSettingsPage() {
               </div>
               <p className="text-xs text-slate-500 mt-1">Discount applied per 7 nights</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5">
+                Cleaning Fee
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-3 text-slate-500">$</span>
+                <input
+                  type="number"
+                  value={rates.cleaningFee}
+                  onChange={(e) => setRates({ ...rates, cleaningFee: parseInt(e.target.value) || 0 })}
+                  className="w-full border rounded-lg pl-8 pr-4 py-2.5"
+                  min="0"
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Flat fee added to every stay (in addition to nightly rate + taxes)</p>
+            </div>
           </div>
 
           <div className="pt-4 border-t">
@@ -201,7 +222,7 @@ export default function RateSettingsPage() {
           </div>
 
           <p className="text-xs text-slate-500 text-center">
-            These base rates are used when calculating quotes. Holiday periods can override rates.
+            These settings (nightly rates, weekly discount, cleaning fee) are used when calculating quotes. Holiday periods can override nightly rates.
           </p>
         </form>
       </div>
