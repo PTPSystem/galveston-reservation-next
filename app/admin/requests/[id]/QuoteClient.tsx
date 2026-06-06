@@ -82,10 +82,28 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   const [dailyAmount, setDailyAmount] = useState('');
   const [dailyReason, setDailyReason] = useState('');
 
-  // Live night-by-night state (only nightly adjustments affect these rows)
-  const [nights, setNights] = useState<NightRow[]>(() => {
-    return generateNights(bookingRequest, holidayPeriods, rateSettings);
+  // Date extension support (tack on before/after for existing bookings)
+  const [editedStart, setEditedStart] = useState(bookingRequest.startDate);
+  const [editedEnd, setEditedEnd] = useState(bookingRequest.endDate);
+
+  // Night adjustments by date (map to support range changes without losing adjs on kept dates)
+  const [nightAdjustmentsMap, setNightAdjustmentsMap] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    if (bookingRequest.pricing?.breakdown) {
+      (bookingRequest.pricing.breakdown as any[]).forEach((row: any) => {
+        if (row.nightlyAdjustment) map[row.date] = row.nightlyAdjustment;
+      });
+    }
+    return map;
   });
+
+  // Availability for overlap checks (exclude self so we can extend the current booking)
+  const [unavailableForCheck, setUnavailableForCheck] = useState<any[]>([]);
+
+  // Clear night selection when date range changes (indices may no longer match)
+  useEffect(() => {
+    setSelectedNightIndex(null);
+  }, [editedStart, editedEnd]);
 
   // Separate stay-level adjustments (never distributed to individual nights)
   const [stayAdjustments, setStayAdjustments] = useState<StayAdjustment[]>([]);
@@ -119,6 +137,23 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
       }
     }
   }, [bookingRequest.pricing]);
+
+  // Fetch availability excluding self (for validating date extensions)
+  useEffect(() => {
+    const fetchForCheck = async () => {
+      try {
+        const exclude = bookingRequest.id ? `?excludeId=${bookingRequest.id}` : '';
+        const res = await fetch(`/api/availability${exclude}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUnavailableForCheck(data.unavailable || []);
+        }
+      } catch (error) {
+        console.error('Failed to load availability for date check', error);
+      }
+    };
+    fetchForCheck();
+  }, [bookingRequest.id]);
 
   // Auto-transition PENDING → REVIEWING when admin opens this screen
   // (matches: "Reviewing - looked at but not approved and send")
@@ -187,6 +222,65 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     return rows;
   }
 
+  // Helpers for date extension
+  const isRangeAvailable = (start: string, end: string): boolean => {
+    if (!start || !end) return false;
+    return !unavailableForCheck.some((p: any) => {
+      return !(end <= p.startDate || start >= p.endDate);
+    });
+  };
+
+  const extendBefore = (days: number) => {
+    if (isSyncedVRBO) return;
+    const curr = new Date(editedStart + 'T00:00:00Z');
+    const newS = new Date(curr);
+    newS.setUTCDate(newS.getUTCDate() - days);
+    const newStartStr = newS.toISOString().split('T')[0];
+    if (isRangeAvailable(newStartStr, editedStart)) {
+      setEditedStart(newStartStr);
+    } else {
+      alert('The dates immediately before are not available. Please check the calendar.');
+    }
+  };
+
+  const extendAfter = (days: number) => {
+    if (isSyncedVRBO) return;
+    const curr = new Date(editedEnd + 'T00:00:00Z');
+    const newE = new Date(curr);
+    newE.setUTCDate(newE.getUTCDate() + days);
+    const newEndStr = newE.toISOString().split('T')[0];
+    if (isRangeAvailable(editedEnd, newEndStr)) {
+      setEditedEnd(newEndStr);
+    } else {
+      alert('The dates immediately after are not available. Please check the calendar.');
+    }
+  };
+
+  const proposedRangeValid = useMemo(() => {
+    return isRangeAvailable(editedStart, editedEnd);
+  }, [editedStart, editedEnd, unavailableForCheck]);
+
+  // Base nights for the (possibly edited) date range
+  const baseNights = useMemo(() => {
+    return generateNights(
+      { startDate: editedStart, endDate: editedEnd } as any,
+      holidayPeriods,
+      rateSettings
+    );
+  }, [editedStart, editedEnd, holidayPeriods, rateSettings]);
+
+  // Nights with adjustments applied (map allows surviving date range changes)
+  const nights = useMemo(() => {
+    return baseNights.map((base: NightRow) => {
+      const adj = nightAdjustmentsMap[base.date] || 0;
+      return {
+        ...base,
+        nightlyAdjustment: adj,
+        finalNight: base.base + adj,
+      };
+    });
+  }, [baseNights, nightAdjustmentsMap]);
+
   // Exact calculation per user's spec:
   // Base + nightly adj sum + stay adj sum → taxes (9% + 6%) on that net → + cleaning
   // 22% management is on the net after both adjustment types ("Base-discount")
@@ -225,7 +319,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     };
   }, [nights, stayAdjustments, excludeCityTax, excludeStateTax, rateSettings]);
 
-  const formattedDateRange = `${new Date(bookingRequest.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(bookingRequest.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
+  const formattedDateRange = `${new Date(editedStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(editedEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
 
   // Open nightly adjustment for a specific night row
   const openDailyAdjustment = (index: number) => {
@@ -254,16 +348,12 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
     const night = nights[selectedNightIndex];
     const newNightlyAdj = (night.nightlyAdjustment || 0) + amount;
-    const newFinalNight = night.base + newNightlyAdj;
 
-    // Optimistic UI update - only this row
-    const updatedNights = [...nights];
-    updatedNights[selectedNightIndex] = {
-      ...night,
-      nightlyAdjustment: newNightlyAdj,
-      finalNight: newFinalNight,
-    };
-    setNights(updatedNights);
+    // Update map (survives date changes)
+    setNightAdjustmentsMap(prev => ({
+      ...prev,
+      [night.date]: newNightlyAdj,
+    }));
 
     // Persist to audit log as 'daily'
     setIsSaving(true);
@@ -372,6 +462,11 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   const handleApprove = async () => {
     setIsSaving(true);
     try {
+      if (!proposedRangeValid) {
+        alert('The selected dates overlap with other unavailable periods on the calendar. Cannot save.');
+        setIsSaving(false);
+        return;
+      }
       const finalPricing = {
         baseRateSum: calculations.baseRateSum,
         nightlyAdjSum: calculations.nightlyAdjSum,
@@ -398,10 +493,15 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         stayAdjustments, // the separate bucket
       };
 
+      // Include (possibly extended) dates so backend can update the booking
+      const savePayload: any = { pricing: finalPricing };
+      if (editedStart !== bookingRequest.startDate) savePayload.startDate = editedStart;
+      if (editedEnd !== bookingRequest.endDate) savePayload.endDate = editedEnd;
+
       const res = await fetch(`/api/admin/requests/${bookingRequest.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pricing: finalPricing }),
+        body: JSON.stringify(savePayload),
       });
 
       if (res.ok) {
@@ -498,6 +598,11 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
+      if (!proposedRangeValid) {
+        alert('The selected dates overlap with other unavailable periods on the calendar. Cannot save.');
+        setIsSaving(false);
+        return;
+      }
       const draftPricing = {
         baseRateSum: calculations.baseRateSum,
         nightlyAdjSum: calculations.nightlyAdjSum,
@@ -516,13 +621,17 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         stayAdjustments,
       };
 
+      const draftPayload: any = { pricing: draftPricing };
+      if (editedStart !== bookingRequest.startDate) draftPayload.startDate = editedStart;
+      if (editedEnd !== bookingRequest.endDate) draftPayload.endDate = editedEnd;
+
       // Lightweight update via existing approve route (it only updates pricing + status)
       // For simplicity we just persist pricing here. Status is managed separately.
       // Here we just update via a direct fetch to a minimal update if needed. For now we optimistically consider it saved.
       await fetch(`/api/admin/requests/${bookingRequest.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pricing: draftPricing }),
+        body: JSON.stringify(draftPayload),
       });
 
       alert('Pricing saved as draft.');
@@ -566,6 +675,64 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
           </div>
         </div>
       </div>
+
+      {/* Date extension for owner/PM: tack on before/after if open on calendar. Generates extra charge on save + emails guest. */}
+      {!isSyncedVRBO && (
+        <div className="mb-6 p-4 bg-white border rounded-2xl">
+          <div className="flex items-center gap-2 mb-2">
+            <i className="fa-solid fa-calendar-plus text-emerald-600"></i>
+            <span className="font-medium text-slate-900">Extend Stay Dates</span>
+            <span className="text-xs text-slate-500">(tack on immediately before or after — only if open)</span>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <div className="text-xs text-slate-600 mb-0.5">Check-in</div>
+              <input
+                type="date"
+                value={editedStart}
+                onChange={(e) => setEditedStart(e.target.value)}
+                className="border rounded-lg px-3 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-slate-600 mb-0.5">Check-out</div>
+              <input
+                type="date"
+                value={editedEnd}
+                onChange={(e) => setEditedEnd(e.target.value)}
+                className="border rounded-lg px-3 py-1.5 text-sm"
+                min={editedStart}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => extendBefore(1)}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                disabled={isSyncedVRBO}
+              >
+                +1 day before
+              </button>
+              <button
+                onClick={() => extendAfter(1)}
+                className="px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                disabled={isSyncedVRBO}
+              >
+                +1 day after
+              </button>
+            </div>
+          </div>
+          {!proposedRangeValid && (editedStart !== bookingRequest.startDate || editedEnd !== bookingRequest.endDate) && (
+            <div className="mt-2 text-sm text-red-600">
+              ⚠️ The new date range overlaps with another booking or blocked date. Please check the calendar.
+            </div>
+          )}
+          {(editedStart !== bookingRequest.startDate || editedEnd !== bookingRequest.endDate) && proposedRangeValid && (
+            <div className="mt-2 text-sm text-emerald-600">
+              Previewing extended dates — pricing below updates automatically with additional charges. Save to persist and email guest the update.
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Main Pricing Table Card */}

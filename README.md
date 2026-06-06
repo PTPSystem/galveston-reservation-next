@@ -47,7 +47,14 @@ npm install
 #    - Also set NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # 4. Apply schema (use db push for rapid iteration; migrations exist for history)
-npx prisma db push
+npm run db:push
+
+# To preview the exact SQL that would run (useful for Neon console or agent safety checks):
+npm run db:diff
+
+# Agent behavior: On schema changes, always run `npm run db:diff` first.
+# For non-trivial migrations, inform the user + get confirmation before `db:push`,
+# or provide the raw SQL to paste directly into Neon.
 
 # 5. (Optional) Seed initial holidays
 npm run prisma:seed

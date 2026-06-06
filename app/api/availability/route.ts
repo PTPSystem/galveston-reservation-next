@@ -25,11 +25,34 @@ export async function GET() {
       },
     });
 
-    const unavailablePeriods = confirmedBookings.map(booking => ({
-      startDate: booking.startDate.toISOString().split('T')[0],
-      endDate: booking.endDate.toISOString().split('T')[0],
-      // We can omit guestName for privacy if desired
-    }));
+    const blockedPeriods = await prisma.blockedPeriod.findMany({
+      where: {
+        endDate: { gt: today },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        reason: true,
+      },
+      orderBy: {
+        startDate: 'asc',
+      },
+    });
+
+    const unavailablePeriods = [
+      ...confirmedBookings.map(booking => ({
+        startDate: booking.startDate.toISOString().split('T')[0],
+        endDate: booking.endDate.toISOString().split('T')[0],
+        source: 'booking' as const,
+        // We can omit guestName for privacy if desired
+      })),
+      ...blockedPeriods.map(block => ({
+        startDate: block.startDate.toISOString().split('T')[0],
+        endDate: block.endDate.toISOString().split('T')[0],
+        source: 'blocked' as const,
+        reason: block.reason,
+      })),
+    ].sort((a, b) => a.startDate.localeCompare(b.startDate));
 
     return NextResponse.json({
       unavailable: unavailablePeriods,

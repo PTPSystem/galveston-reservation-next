@@ -11,14 +11,24 @@ interface HolidayPeriod {
   notes: string | null;
 }
 
-interface Props {
-  initialHolidays: HolidayPeriod[];
+interface BlockedPeriod {
+  id: number;
+  startDate: string;
+  endDate: string;
+  reason: string | null;
 }
 
-export default function HolidayCalendarClient({ initialHolidays }: Props) {
+interface Props {
+  initialHolidays: HolidayPeriod[];
+  initialBlocks: BlockedPeriod[];
+}
+
+export default function HolidayCalendarClient({ initialHolidays, initialBlocks }: Props) {
   const [holidays, setHolidays] = useState<HolidayPeriod[]>(initialHolidays);
+  const [blocks, setBlocks] = useState<BlockedPeriod[]>(initialBlocks);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [addType, setAddType] = useState<'holiday' | 'blocked'>('holiday'); // for add modal type
 
   // Inline editing state
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -38,14 +48,25 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
     notes: '',
   });
 
+  const [blockForm, setBlockForm] = useState({
+    startDate: '',
+    endDate: '',
+    reason: '',
+  });
+
   const calculateNights = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  const openAddModal = () => {
-    setAddForm({ name: '', startDate: '', endDate: '', rate: 700, notes: '' });
+  const openAddModal = (type: 'holiday' | 'blocked' = 'holiday') => {
+    setAddType(type);
+    if (type === 'holiday') {
+      setAddForm({ name: '', startDate: '', endDate: '', rate: 700, notes: '' });
+    } else {
+      setBlockForm({ startDate: '', endDate: '', reason: '' });
+    }
     setIsAddModalOpen(true);
   };
 
@@ -123,28 +144,61 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const payload = {
-      name: addForm.name,
-      startDate: addForm.startDate,
-      endDate: addForm.endDate,
-      rate: addForm.rate,
-      notes: addForm.notes || null,
-    };
+    if (addType === 'holiday') {
+      const payload = {
+        name: addForm.name,
+        startDate: addForm.startDate,
+        endDate: addForm.endDate,
+        rate: addForm.rate,
+        notes: addForm.notes || null,
+      };
 
-    try {
-      const res = await fetch('/api/admin/holidays', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      try {
+        const res = await fetch('/api/admin/holidays', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      if (res.ok) {
-        const newHoliday = await res.json();
-        setHolidays([...holidays, newHoliday]);
-        closeAddModal();
+        if (res.ok) {
+          const newHoliday = await res.json();
+          setHolidays([...holidays, newHoliday]);
+          closeAddModal();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'Failed to add holiday period');
+        }
+      } catch (error) {
+        console.error('Failed to add holiday period', error);
+        alert('Failed to add');
       }
-    } catch (error) {
-      console.error('Failed to add holiday period', error);
+    } else {
+      // blocked
+      const payload = {
+        startDate: blockForm.startDate,
+        endDate: blockForm.endDate,
+        reason: blockForm.reason || null,
+      };
+
+      try {
+        const res = await fetch('/api/admin/blocks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          const newBlock = await res.json();
+          setBlocks([...blocks, newBlock]);
+          closeAddModal();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'Failed to add blocked date (check calendar for conflicts?)');
+        }
+      } catch (error) {
+        console.error('Failed to add blocked period', error);
+        alert('Failed to add blocked date');
+      }
     }
   };
 
@@ -158,6 +212,19 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
       }
     } catch (error) {
       console.error('Failed to delete', error);
+    }
+  };
+
+  const handleDeleteBlock = async (id: number) => {
+    if (!confirm('Remove this blocked date? It will become available again on the calendar.')) return;
+
+    try {
+      const res = await fetch(`/api/admin/blocks/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setBlocks(blocks.filter(b => b.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete block', error);
     }
   };
 
@@ -191,21 +258,31 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
   return (
     <>
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-2xl p-5 border">
-          <div className="text-sm text-slate-700">Total Periods</div>
+          <div className="text-sm text-slate-700">Holiday/Peak Periods</div>
           <div className="text-3xl font-semibold mt-1 text-slate-900">{holidays.length}</div>
         </div>
         <div className="bg-white rounded-2xl p-5 border">
           <div className="text-sm text-slate-700">Total Holiday Nights</div>
           <div className="text-3xl font-semibold mt-1 text-orange-600">{totalNights}</div>
         </div>
+        <div className="bg-white rounded-2xl p-5 border">
+          <div className="text-sm text-slate-700">Manually Blocked</div>
+          <div className="text-3xl font-semibold mt-1 text-red-600">{blocks.length}</div>
+        </div>
+        <div className="bg-white rounded-2xl p-5 border">
+          <div className="text-sm text-slate-700">Blocked Nights</div>
+          <div className="text-3xl font-semibold mt-1 text-red-600">
+            {blocks.reduce((sum, b) => sum + Math.ceil((new Date(b.endDate).getTime() - new Date(b.startDate).getTime()) / (1000*60*60*24)) + 1, 0)}
+          </div>
+        </div>
       </div>
 
       {/* Header row with actions - shared between mobile and desktop */}
       <div className="bg-white rounded-2xl shadow-sm border mb-4">
         <div className="p-3 sm:p-4 border-b flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-          <h2 className="font-semibold text-slate-900">Defined Periods</h2>
+          <h2 className="font-semibold text-slate-900">Holiday &amp; Peak Periods (pricing)</h2>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={removeDuplicates}
@@ -216,11 +293,11 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
               <span className="sm:hidden">Clean Duplicates</span>
             </button>
             <button
-              onClick={openAddModal}
+              onClick={() => openAddModal('holiday')}
               className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm hover:bg-emerald-700"
             >
               <i className="fa-solid fa-plus"></i>
-              Add Period
+              Add Holiday Period
             </button>
           </div>
         </div>
@@ -415,67 +492,206 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
         </div>
       </div>
 
-      {/* Add Modal (only for adding new periods) */}
+      {/* Manually Blocked Dates Section */}
+      <div className="bg-white rounded-2xl shadow-sm border mb-6">
+        <div className="p-3 sm:p-4 border-b flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <h2 className="font-semibold text-slate-900">Manually Blocked Dates (unavailable on calendar)</h2>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => openAddModal('blocked')}
+              className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm hover:bg-red-700"
+            >
+              <i className="fa-solid fa-ban"></i>
+              Add Blocked Date
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Table for Blocks */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 sm:px-6 py-3 text-left font-medium text-slate-700">Start</th>
+                <th className="px-3 sm:px-6 py-3 text-left font-medium text-slate-700">End</th>
+                <th className="px-3 sm:px-6 py-3 text-center font-medium text-slate-700">Nights</th>
+                <th className="px-4 sm:px-6 py-3 text-left font-medium text-slate-700">Reason</th>
+                <th className="px-4 sm:px-6 py-3 text-right font-medium text-slate-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {blocks.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">No manually blocked dates.</td>
+                </tr>
+              )}
+              {blocks.map((block) => {
+                const nights = Math.ceil((new Date(block.endDate).getTime() - new Date(block.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                return (
+                  <tr key={block.id} className="hover:bg-red-50/30">
+                    <td className="px-4 sm:px-6 py-4 text-slate-800">{new Date(block.startDate).toLocaleDateString()}</td>
+                    <td className="px-3 sm:px-6 py-4 text-slate-800">{new Date(block.endDate).toLocaleDateString()}</td>
+                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-red-700">{nights}</td>
+                    <td className="px-4 sm:px-6 py-4 text-xs text-slate-700 max-w-xs truncate">{block.reason || '—'}</td>
+                    <td className="px-4 sm:px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteBlock(block.id)}
+                        className="px-3 py-1 text-sm rounded border border-red-200 text-red-700 hover:bg-red-50"
+                      >
+                        <i className="fa-solid fa-trash"></i> Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards for Blocks */}
+        <div className="md:hidden divide-y">
+          {blocks.length === 0 && (
+            <div className="p-8 text-center text-slate-600">No manually blocked dates yet. Use the button above to add dates that should be unavailable (e.g. maintenance).</div>
+          )}
+          {blocks.map((block) => {
+            const nights = Math.ceil((new Date(block.endDate).getTime() - new Date(block.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            return (
+              <div key={block.id} className="p-4 bg-red-50/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-lg text-red-900">
+                      {new Date(block.startDate).toLocaleDateString()} → {new Date(block.endDate).toLocaleDateString()}
+                      <span className="text-red-600"> ({nights} nights)</span>
+                    </div>
+                    {block.reason && (
+                      <div className="mt-1 text-sm text-slate-600">{block.reason}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={() => handleDeleteBlock(block.id)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-red-200 text-red-700 rounded-xl hover:bg-red-50 active:bg-red-100"
+                  >
+                    <i className="fa-solid fa-trash"></i>
+                    Remove Block
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Add Modal (supports both holiday and blocked) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeAddModal}>
           <div className="bg-white w-full max-w-lg mx-4 rounded-2xl" onClick={e => e.stopPropagation()}>
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-slate-900">Add Holiday / Peak Period</h3>
+              <h3 className="text-lg font-semibold mb-4 text-slate-900">
+                {addType === 'holiday' ? 'Add Holiday / Peak Period' : 'Add Manually Blocked Date(s)'}
+              </h3>
+              <p className="text-sm text-slate-600 mb-4">
+                {addType === 'holiday' 
+                  ? 'These dates will use the special rate when quoted. They do not block availability.'
+                  : 'These dates will be marked unavailable on the public calendar and in booking requests. Checked against existing confirmed bookings.'}
+              </p>
 
               <form onSubmit={handleAddSubmit} className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Name</label>
-                  <input
-                    type="text"
-                    value={addForm.name}
-                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                    className="mt-1 w-full border rounded-lg px-4 py-2"
-                    required
-                  />
-                </div>
+                {addType === 'holiday' ? (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium">Name</label>
+                      <input
+                        type="text"
+                        value={addForm.name}
+                        onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                        className="mt-1 w-full border rounded-lg px-4 py-2"
+                        required
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Start Date</label>
-                    <input
-                      type="date"
-                      value={addForm.startDate}
-                      onChange={(e) => setAddForm({ ...addForm, startDate: e.target.value })}
-                      className="mt-1 w-full border rounded-lg px-4 py-2"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">End Date</label>
-                    <input
-                      type="date"
-                      value={addForm.endDate}
-                      onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
-                      className="mt-1 w-full border rounded-lg px-4 py-2"
-                      required
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Start Date</label>
+                        <input
+                          type="date"
+                          value={addForm.startDate}
+                          onChange={(e) => setAddForm({ ...addForm, startDate: e.target.value })}
+                          className="mt-1 w-full border rounded-lg px-4 py-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">End Date</label>
+                        <input
+                          type="date"
+                          value={addForm.endDate}
+                          onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
+                          className="mt-1 w-full border rounded-lg px-4 py-2"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="text-sm font-medium">Rate per Night</label>
-                  <input
-                    type="number"
-                    value={addForm.rate}
-                    onChange={(e) => setAddForm({ ...addForm, rate: parseInt(e.target.value) })}
-                    className="mt-1 w-full border rounded-lg px-4 py-2"
-                  />
-                </div>
+                    <div>
+                      <label className="text-sm font-medium">Rate per Night</label>
+                      <input
+                        type="number"
+                        value={addForm.rate}
+                        onChange={(e) => setAddForm({ ...addForm, rate: parseInt(e.target.value) })}
+                        className="mt-1 w-full border rounded-lg px-4 py-2"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-sm font-medium">Notes</label>
-                  <textarea
-                    value={addForm.notes}
-                    onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
-                    className="mt-1 w-full border rounded-lg px-4 py-2"
-                    rows={2}
-                  />
-                </div>
+                    <div>
+                      <label className="text-sm font-medium">Notes</label>
+                      <textarea
+                        value={addForm.notes}
+                        onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                        className="mt-1 w-full border rounded-lg px-4 py-2"
+                        rows={2}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Start Date</label>
+                        <input
+                          type="date"
+                          value={blockForm.startDate}
+                          onChange={(e) => setBlockForm({ ...blockForm, startDate: e.target.value })}
+                          className="mt-1 w-full border rounded-lg px-4 py-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">End Date</label>
+                        <input
+                          type="date"
+                          value={blockForm.endDate}
+                          onChange={(e) => setBlockForm({ ...blockForm, endDate: e.target.value })}
+                          className="mt-1 w-full border rounded-lg px-4 py-2"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Reason (optional)</label>
+                      <textarea
+                        value={blockForm.reason}
+                        onChange={(e) => setBlockForm({ ...blockForm, reason: e.target.value })}
+                        className="mt-1 w-full border rounded-lg px-4 py-2"
+                        rows={2}
+                        placeholder="e.g. Owner stay, maintenance, etc."
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500">Single day: set start and end to the same date. This will appear as unavailable on the public calendar.</p>
+                  </>
+                )}
 
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="button" onClick={closeAddModal} className="px-4 py-2 text-sm text-slate-700 hover:text-slate-900">
@@ -483,9 +699,9 @@ export default function HolidayCalendarClient({ initialHolidays }: Props) {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium"
+                    className={`px-6 py-2 ${addType === 'holiday' ? 'bg-emerald-600' : 'bg-red-600'} text-white rounded-lg text-sm font-medium`}
                   >
-                    Add Period
+                    {addType === 'holiday' ? 'Add Period' : 'Add Blocked Date'}
                   </button>
                 </div>
               </form>

@@ -83,6 +83,17 @@ model HolidayPeriod {
   @@map("holiday_periods")
 }
 
+model BlockedPeriod {
+  id          Int      @id @default(autoincrement())
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("blocked_periods")
+}
+
 enum BookingSource {
   DIRECT
   VRBO

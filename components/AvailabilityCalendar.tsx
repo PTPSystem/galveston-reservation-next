@@ -8,6 +8,8 @@ import Link from 'next/link';
 interface UnavailablePeriod {
   startDate: string;
   endDate: string;
+  source?: 'booking' | 'blocked';
+  reason?: string | null;
 }
 
 export default function AvailabilityCalendar() {
@@ -124,6 +126,7 @@ export default function AvailabilityCalendar() {
                     <li key={i}>
                       {new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
                       {new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {p.source === 'blocked' && <span className="ml-1 text-red-600">(manually blocked{p.reason ? `: ${p.reason}` : ''})</span>}
                     </li>
                   ))}
                   {unavailablePeriods.length > 6 && <li>+{unavailablePeriods.length - 6} more</li>}

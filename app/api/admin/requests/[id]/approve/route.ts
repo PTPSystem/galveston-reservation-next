@@ -11,22 +11,30 @@ export async function POST(
   const requestId = parseInt(id);
   const body = await request.json();
 
+  const updateData: any = {
+    status: 'CONFIRMED',
+    approvedAt: new Date(),
+    pricing: body.pricing,
+  };
+  if (body.startDate) updateData.startDate = new Date(body.startDate);
+  if (body.endDate) updateData.endDate = new Date(body.endDate);
+
   const updated = await prisma.bookingRequest.update({
     where: { id: requestId },
-    data: {
-      status: 'CONFIRMED',
-      approvedAt: new Date(),
-      pricing: body.pricing,
-    },
+    data: updateData,
   });
 
-  // Send quote email to guest
+  // Use the (possibly extended) dates for email if provided in body
+  const emailStart = body.startDate ? new Date(body.startDate).toISOString() : updated.startDate.toISOString();
+  const emailEnd = body.endDate ? new Date(body.endDate).toISOString() : updated.endDate.toISOString();
+
+  // Send quote email to guest (will reflect new dates/total if extended)
   if (updated.approvalToken) {
     await sendQuoteEmail({
       to: updated.guestEmail,
       guestName: updated.guestName,
-      startDate: updated.startDate.toISOString(),
-      endDate: updated.endDate.toISOString(),
+      startDate: emailStart,
+      endDate: emailEnd,
       pricing: body.pricing,
       approvalToken: updated.approvalToken,
     });
@@ -41,8 +49,8 @@ export async function POST(
       recipients: internalEmails,
       guestName: updated.guestName,
       guestEmail: updated.guestEmail,
-      startDate: updated.startDate.toISOString(),
-      endDate: updated.endDate.toISOString(),
+      startDate: emailStart,
+      endDate: emailEnd,
       pricing: body.pricing,
       bookingId: updated.id,
     });
