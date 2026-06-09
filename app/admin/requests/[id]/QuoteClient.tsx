@@ -73,6 +73,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   const [excludeCityTax, setExcludeCityTax] = useState(false);
   const [excludeStateTax, setExcludeStateTax] = useState(false);
 
+  // Per-booking cleaning fee override (null = use the global RateSetting value)
+  const [customCleaningFee, setCustomCleaningFee] = useState<number | null>(null);
+
   // Custom modal form state
   const [customType, setCustomType] = useState<'daily' | 'stay'>('stay');
   const [customAmount, setCustomAmount] = useState('-150');
@@ -125,7 +128,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     }
   }, [bookingRequest.adjustments]);
 
-  // Hydrate tax exemption checkboxes from saved pricing snapshot (for friends/family cases)
+  // Hydrate tax exemption checkboxes + cleaning fee override from saved pricing snapshot
   useEffect(() => {
     const p = bookingRequest.pricing;
     if (p && typeof p === 'object') {
@@ -135,8 +138,17 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
       if (typeof p.excludeStateTax === 'boolean') {
         setExcludeStateTax(p.excludeStateTax);
       }
+      if (typeof p.customCleaningFee === 'number') {
+        setCustomCleaningFee(p.customCleaningFee);
+      } else if (typeof p.cleaningFee === 'number') {
+        // Backward compat: if only the computed value exists and differs from current default
+        const globalDefault = rateSettings?.cleaningFee ?? 300;
+        if (p.cleaningFee !== globalDefault) {
+          setCustomCleaningFee(p.cleaningFee);
+        }
+      }
     }
-  }, [bookingRequest.pricing]);
+  }, [bookingRequest.pricing, rateSettings]);
 
   // Fetch availability excluding self (for validating date extensions)
   useEffect(() => {
@@ -295,7 +307,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
     const jamaicaBeachTax = excludeCityTax ? 0 : Math.round(netAfterAdjustments * 0.09 * 100) / 100;
     const texasStateTax = excludeStateTax ? 0 : Math.round(netAfterAdjustments * 0.06 * 100) / 100;
-    const cleaning = rateSettings.cleaningFee ?? 300;
+    const cleaning = customCleaningFee ?? rateSettings.cleaningFee ?? 300;
 
     const totalGuest = netAfterAdjustments + jamaicaBeachTax + texasStateTax + cleaning;
 
@@ -482,6 +494,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         // Tax exemptions (friends/family) — when true the corresponding tax above is 0
         excludeCityTax,
         excludeStateTax,
+        // Per-booking cleaning fee override (null/undefined = use global RateSetting)
+        customCleaningFee,
         // Per-night breakdown only reflects nightly layer (stay is separate)
         breakdown: nights.map(n => ({
           date: n.date,
@@ -618,6 +632,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         // Tax exemptions (friends/family)
         excludeCityTax,
         excludeStateTax,
+        // Per-booking cleaning fee override
+        customCleaningFee,
         stayAdjustments,
       };
 
@@ -932,6 +948,38 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
               <p className="text-[11px] text-slate-500 mt-2 leading-tight">
                 When checked, these taxes are not added to the guest total and will not be remitted.
               </p>
+
+              {/* Cleaning fee override - requested so it can be adjusted per booking (e.g. friends & family) */}
+              <div className="mt-4 pt-3 border-t">
+                <label className="block text-sm font-medium text-slate-900 mb-1">
+                  Cleaning Fee Override
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">$</span>
+                  <input
+                    type="number"
+                    value={customCleaningFee ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomCleaningFee(val === '' ? null : (parseInt(val) || 0));
+                    }}
+                    placeholder={String(rateSettings?.cleaningFee ?? 300)}
+                    className="w-28 border rounded-lg px-3 py-1.5 text-sm"
+                    min="0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCustomCleaningFee(null)}
+                    className="text-xs text-slate-500 hover:text-slate-700 underline"
+                  >
+                    Use default
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 leading-tight">
+                  Leave blank to use the global default from Rates &amp; Pricing.
+                  This value is stored in the quote snapshot.
+                </p>
+              </div>
             </div>
           )}
 
@@ -981,7 +1029,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 <span className="font-semibold text-slate-900">${calculations.texasStateTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-800">
-                <span>Cleaning Fee</span>
+                <span>
+                  Cleaning Fee
+                  {customCleaningFee !== null ? ' (custom)' : ''}
+                </span>
                 <span className="font-semibold text-slate-900">${calculations.cleaning.toFixed(2)}</span>
               </div>
 
@@ -1014,7 +1065,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 <span className="font-medium text-amber-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-amber-700">Cleaning Fee</span>
+                <span className="text-amber-700">
+                  Cleaning Fee
+                  {customCleaningFee !== null ? ' (custom)' : ''}
+                </span>
                 <span className="font-medium text-amber-900">${calculations.cleaning.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
