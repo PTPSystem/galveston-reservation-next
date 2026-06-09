@@ -35,7 +35,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  const statusOptions = ['PENDING', 'REVIEWING', 'REJECTED', 'CONFIRMED', 'CANCELLED'];
+  const statusOptions = ['PENDING', 'REVIEWING', 'REJECTED', 'CONFIRMED', 'CANCELLED', 'PAST'];
 
   const statusPriority: Record<string, number> = {
     PENDING: 1,
@@ -83,14 +83,17 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
       );
     }
 
-    // Apply status filters (multi-select)
+    // Apply status filters (multi-select), with special handling for 'PAST'
     if (statusFilters.length > 0) {
-      result = result.filter((r) => statusFilters.includes(r.status));
+      result = result.filter((r) => {
+        const matchesRealStatus = statusFilters.includes(r.status);
+        const matchesPast = statusFilters.includes('PAST') && r.status === 'CONFIRMED' && new Date(r.endDate) < today;
+        return matchesRealStatus || matchesPast;
+      });
     }
 
-    // "Needs attention" rule: when CONFIRMED is included in the filter,
-    // only show upcoming stays (startDate >= today). This is the default view.
-    if (statusFilters.includes('CONFIRMED')) {
+    // "Needs attention" rule for CONFIRMED: only upcoming (unless PAST is also selected)
+    if (statusFilters.includes('CONFIRMED') && !statusFilters.includes('PAST')) {
       result = result.filter((r) => {
         if (r.status !== 'CONFIRMED') return true;
         const start = new Date(r.startDate);
@@ -209,7 +212,10 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
               status === 'REVIEWING' ? 'bg-blue-100 text-blue-700 border-blue-200' :
               status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
               status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+              status === 'PAST' ? 'bg-slate-200 text-slate-700 border-slate-300' :
               'bg-slate-200 text-slate-700 border-slate-300';
+
+            const displayLabel = status === 'PAST' ? 'Past Stays' : status;
 
             return (
               <button
@@ -221,7 +227,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {status}
+                {displayLabel}
               </button>
             );
           })}
