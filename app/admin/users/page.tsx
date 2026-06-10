@@ -16,6 +16,7 @@ export default function UsersPage() {
   const { data: session, status } = useSession();
   const role = (session?.user as any)?.role;
 
+  const [users, setUsers] = useState<any[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER'>('PROPERTY_MANAGER');
@@ -28,6 +29,18 @@ export default function UsersPage() {
       window.location.href = '/login';
     }
   }, [status, role]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchInvites = async () => {
     try {
@@ -42,6 +55,7 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
+    fetchUsers();
     fetchInvites();
   }, []);
 
@@ -125,6 +139,59 @@ export default function UsersPage() {
     }
   };
 
+  const handleUpdateRole = async (userId: string, newRole: string, userEmail: string) => {
+    if (!confirm(`Change role for ${userEmail} to ${newRole}?`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'Failed to update role' });
+      } else {
+        setMessage({ type: 'success', text: `Role updated for ${userEmail}` });
+        fetchUsers();
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Network error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (userId: string, userEmail: string) => {
+    if (!confirm(`Send password reset invite to ${userEmail}? They will receive an email to set a new password.`)) return;
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || 'Failed to send reset' });
+      } else {
+        setMessage({ type: 'success', text: data.message || `Password reset invite sent to ${userEmail}` });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Network error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (status === 'loading') {
     return <div className="p-8">Loading...</div>;
   }
@@ -136,6 +203,52 @@ export default function UsersPage() {
   return (
     <div className="max-w-4xl mx-auto py-8 px-6">
       <h1 className="text-2xl font-semibold mb-6">Users &amp; Invites</h1>
+
+      {/* Users List */}
+      <div className="bg-white rounded-2xl border mb-8">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Users</h2>
+        </div>
+        <div className="divide-y">
+          {users.length === 0 && (
+            <div className="p-6 text-sm text-slate-600">No users found.</div>
+          )}
+          {users.map((user) => (
+            <div key={user.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+              <div className="min-w-0">
+                <div className="font-medium">{user.name || user.email}</div>
+                <div className="text-xs text-slate-500">{user.email}</div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Created {new Date(user.createdAt).toLocaleDateString()}
+                  {user.emailVerified && ' • Verified'}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                {/* Role reassignment */}
+                <select
+                  value={user.role}
+                  onChange={(e) => handleUpdateRole(user.id, e.target.value, user.email)}
+                  disabled={loading}
+                  className="border rounded px-3 py-1 text-sm disabled:opacity-50"
+                >
+                  <option value="PROPERTY_MANAGER">Property Manager</option>
+                  <option value="OWNER">Owner</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+
+                <button
+                  onClick={() => handleResetPassword(user.id, user.email)}
+                  disabled={loading}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50 whitespace-nowrap"
+                >
+                  Reset Password
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border p-6 mb-8">
         <h2 className="font-semibold mb-4">Invite New User</h2>

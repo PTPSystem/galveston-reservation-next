@@ -60,28 +60,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invite expired' }, { status: 400 });
     }
 
-    // Check if user already exists
+    // Check if user already exists (this can happen for password resets)
     const existingUser = await prisma.user.findUnique({
       where: { email: invite.email },
     });
 
-    if (existingUser) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 400 });
-    }
-
     const hashedPassword = await hash(password, 12);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: invite.email,
-        name: name || null,
-        password: hashedPassword,
-        role: invite.role,
-        emailVerified: new Date(),
-        lastEmailVerification: new Date(),
-      },
-    });
+    let userId: string;
+
+    if (existingUser) {
+      // Password reset for existing user - update password, do not change role
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          password: hashedPassword,
+          name: name || existingUser.name,
+          emailVerified: new Date(),
+          lastEmailVerification: new Date(),
+        },
+      });
+      userId = existingUser.id;
+    } else {
+      // New user from invite
+      const user = await prisma.user.create({
+        data: {
+          email: invite.email,
+          name: name || null,
+          password: hashedPassword,
+          role: invite.role,
+          emailVerified: new Date(),
+          lastEmailVerification: new Date(),
+        },
+      });
+      userId = user.id;
+    }
 
     // Mark invite as used
     await prisma.invite.update({
@@ -89,7 +102,7 @@ export async function POST(request: NextRequest) {
       data: { usedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true, userId: user.id });
+    return NextResponse.json({ success: true, userId, wasReset: !!existingUser });
   } catch (error) {
     console.error('Invite acceptance error:', error);
     return NextResponse.json({ error: 'Failed to accept invite' }, { status: 500 });
