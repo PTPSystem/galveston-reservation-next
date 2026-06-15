@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
-import { sendInviteEmail } from '@/lib/email';
+import { sendPasswordResetEmail } from '@/lib/email';
 
 export async function POST(
   request: NextRequest,
@@ -59,17 +59,16 @@ export async function POST(
     include: { inviter: true },
   });
 
-  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite?token=${token}`;
+  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
 
-  await sendInviteEmail({
+  await sendPasswordResetEmail({
     to: targetUser.email,
-    inviteLink,
-    inviterName: currentUser.name || undefined,
+    resetLink,
     role: targetUser.role,
   });
 
   return NextResponse.json({ 
     success: true, 
-    message: `Password reset invite sent to ${targetUser.email}` 
+    message: `Password reset email sent to ${targetUser.email}` 
   });
 }
