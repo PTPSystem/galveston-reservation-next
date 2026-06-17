@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { UploadCloud } from 'lucide-react';
 
 interface MonthlySummary {
   yearMonth: string;
@@ -39,6 +40,8 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [importResult, setImportResult] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get available years from data
   const availableYears = Array.from(
@@ -84,10 +87,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
     }).format(amount || 0);
   };
 
-  const handleVrboImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFileUpload = async (file: File) => {
     setUploading(true);
     setImportResult(null);
 
@@ -102,18 +102,49 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
 
       const data = await res.json();
       setImportResult(data);
-
-      if (data.success) {
-        // Refresh the page data by reloading (simple way)
-        window.location.reload();
-      }
     } catch (err) {
-      setImportResult({ success: false, error: 'Upload failed' });
+      setImportResult({ success: false, error: 'Upload failed. Please try again.' });
     } finally {
       setUploading(false);
-      // reset input
-      e.target.value = '';
     }
+  };
+
+  const handleVrboImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+    // allow selecting the same file again
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      // basic validation
+      if (file.name.endsWith('.csv') || file.name.endsWith('.tsv') || file.type.includes('csv') || file.type.includes('text')) {
+        handleFileUpload(file);
+      } else {
+        setImportResult({ success: false, error: 'Please upload a .csv or .tsv file.' });
+      }
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -124,21 +155,51 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
         <p className="text-sm text-slate-600 mb-3">
           Upload the monthly owner statement CSV exported from VRBO. We will match rows to existing VRBO-synced bookings by Reservation ID (or dates + last name fallback) and store the payout details for reporting.
         </p>
-        <div className="flex items-center gap-3">
+        <div
+          onClick={triggerFileSelect}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`mt-2 border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-slate-400 bg-white'} ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+        >
           <input
+            ref={fileInputRef}
             type="file"
             accept=".csv,.tsv,text/csv"
             onChange={handleVrboImport}
-            disabled={uploading}
-            className="text-sm"
+            className="hidden"
           />
-          {uploading && <span className="text-sm text-slate-500">Uploading &amp; matching...</span>}
+
+          <div className="flex flex-col items-center">
+            <UploadCloud className="h-10 w-10 text-slate-400 mb-3" />
+            <p className="font-medium text-slate-700">Drop your VRBO CSV here</p>
+            <p className="text-sm text-slate-500 mt-1">or click anywhere in this box to choose a file</p>
+            <p className="text-[10px] text-slate-400 mt-2">Accepts .csv and .tsv files exported from VRBO Owner portal</p>
+          </div>
         </div>
+
+        {uploading && (
+          <div className="mt-2 text-sm text-emerald-600 flex items-center gap-2">
+            <span>Uploading and matching...</span>
+          </div>
+        )}
+
         {importResult && (
-          <div className={`mt-3 p-3 rounded text-sm ${importResult.success ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-            {importResult.message || importResult.error}
+          <div className={`mt-3 p-3 rounded-xl text-sm border ${importResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
+            <div>{importResult.message || importResult.error}</div>
             {importResult.unmatched?.length > 0 && (
-              <div className="mt-1 text-xs">Unmatched Reservation IDs: {importResult.unmatched.slice(0, 5).join(', ')}{importResult.unmatched.length > 5 ? '...' : ''}</div>
+              <div className="mt-1.5 text-xs opacity-80">
+                Unmatched Reservation IDs (not linked to any VRBO booking in the system):<br />
+                {importResult.unmatched.slice(0, 8).join(', ')}{importResult.unmatched.length > 8 ? ' ...' : ''}
+              </div>
+            )}
+            {importResult.success && (
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-2 text-xs underline hover:no-underline"
+              >
+                Reload page to see updated reports
+              </button>
             )}
           </div>
         )}
