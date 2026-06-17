@@ -97,11 +97,6 @@ export default async function ReportsPage() {
     }
   }
 
-  // Convert to sorted array (newest first)
-  const monthlySummaries = Array.from(monthlyMap.values()).sort((a, b) =>
-    b.yearMonth.localeCompare(a.yearMonth)
-  );
-
   // Also pull in any VRBO payouts (linked or not) and merge into monthly summaries
   const vrboPayouts = await prisma.vrboPayout.findMany();
 
