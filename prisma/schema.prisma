@@ -48,6 +48,7 @@ model BookingRequest {
   // Relations
   calendarEvent     CalendarEvent?
   adjustments       PricingAdjustment[]
+  vrboPayout        VrboPayout?
 
   @@map("booking_requests")
 }
@@ -92,6 +93,34 @@ model BlockedPeriod {
   updatedAt   DateTime @updatedAt
 
   @@map("blocked_periods")
+}
+
+model VrboPayout {
+  id                        Int      @id @default(autoincrement())
+  reservationId             String   @unique @map("reservation_id")
+  propertyId                String?  @map("property_id")
+  unitId                    String?  @map("unit_id")
+  address                   String?
+  travelerFirstName         String?  @map("traveler_first_name")
+  travelerLastName          String?  @map("traveler_last_name")
+  bookingStatus             String?  @map("booking_status")
+  checkIn                   DateTime @map("check_in")
+  checkOut                  DateTime @map("check_out")
+  nights                    Int
+  payoutDate                DateTime? @map("payout_date")
+  grossBookingAmount        Float    @map("gross_booking_amount")
+  deductions                Float
+  payout                    Float
+  lodgingTaxOwnerRemits     Float    @map("lodging_tax_owner_remits")
+  taxWithheld               Float    @map("tax_withheld")
+  payoutCurrency            String?  @map("payout_currency")
+  raw                       Json?
+  bookingRequestId          Int?     @unique @map("booking_request_id")
+  importedAt                DateTime @default(now()) @map("imported_at")
+
+  bookingRequest            BookingRequest? @relation(fields: [bookingRequestId], references: [id])
+
+  @@map("vrbo_payouts")
 }
 
 enum BookingSource {

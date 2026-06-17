@@ -75,6 +75,8 @@ export default async function ReportsPage() {
         ownerProceeds: 0,
         directBookings: 0,
         vrboBookings: 0,
+        vrboGrossRevenue: 0,
+        vrboPayouts: 0,
       });
     }
 
@@ -100,6 +102,52 @@ export default async function ReportsPage() {
     b.yearMonth.localeCompare(a.yearMonth)
   );
 
+  // Also pull in any VRBO payouts (linked or not) and merge into monthly summaries
+  const vrboPayouts = await prisma.vrboPayout.findMany();
+
+  for (const p of vrboPayouts) {
+    const start = new Date(p.checkIn);
+    const yearMonth = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+    const monthLabel = start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    if (!monthlyMap.has(yearMonth)) {
+      monthlyMap.set(yearMonth, {
+        yearMonth,
+        monthLabel,
+        bookings: 0,
+        nights: 0,
+        grossRevenue: 0,
+        cleaningFees: 0,
+        jamaicaTaxes: 0,
+        texasTaxes: 0,
+        managementFees: 0,
+        ownerProceeds: 0,
+        directBookings: 0,
+        vrboBookings: 0,
+        vrboGrossRevenue: 0,
+        vrboPayouts: 0,
+      });
+    }
+
+    const m = monthlyMap.get(yearMonth);
+    // Always accumulate VRBO specific numbers
+    m.vrboGrossRevenue = (m.vrboGrossRevenue || 0) + (p.grossBookingAmount || 0);
+    m.vrboPayouts = (m.vrboPayouts || 0) + (p.payout || 0);
+
+    // If this payout is not linked to a booking we already counted, add to totals too
+    if (!p.bookingRequestId) {
+      m.bookings += 1;
+      m.nights += p.nights;
+      m.vrboBookings += 1;
+      m.grossRevenue += p.grossBookingAmount || 0;
+      m.ownerProceeds += p.payout || 0; // for VRBO, payout to owner is the key "proceeds"
+    }
+  }
+
+  const monthlySummaries = Array.from(monthlyMap.values()).sort((a, b) =>
+    b.yearMonth.localeCompare(a.yearMonth)
+  );
+
   // Yearly totals (for current year)
   const currentYear = new Date().getFullYear();
   const yearlyData = monthlySummaries
@@ -111,6 +159,8 @@ export default async function ReportsPage() {
         acc.grossRevenue += m.grossRevenue;
         acc.ownerProceeds += m.ownerProceeds;
         acc.managementFees += m.managementFees;
+        acc.vrboGrossRevenue = (acc.vrboGrossRevenue || 0) + (m.vrboGrossRevenue || 0);
+        acc.vrboPayouts = (acc.vrboPayouts || 0) + (m.vrboPayouts || 0);
         return acc;
       },
       {
@@ -119,6 +169,8 @@ export default async function ReportsPage() {
         grossRevenue: 0,
         ownerProceeds: 0,
         managementFees: 0,
+        vrboGrossRevenue: 0,
+        vrboPayouts: 0,
       }
     );
 
@@ -127,7 +179,7 @@ export default async function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
         <p className="text-slate-600 mt-1">
-          Monthly financial summary for direct (custom) reservations. VRBO data is not available through our system.
+          Monthly financial summary for direct (custom) reservations + imported VRBO payouts.
         </p>
       </div>
 
@@ -135,10 +187,8 @@ export default async function ReportsPage() {
       <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm">
         <div className="font-medium text-amber-800 mb-1">VRBO Financial Data</div>
         <div className="text-amber-700">
-          Our current integration with VRBO is limited to calendar/availability sync via iCal. 
-          Full financial data (payouts, guest payments, VRBO fees) is not exposed through the iCal feed. 
-          To aggregate VRBO numbers, you would need to export monthly owner statements from the VRBO Owner portal (CSV) 
-          and we could build an upload/parser feature for them in a future iteration.
+          Our iCal sync only covers availability. Use the import box below to upload VRBO owner statement CSVs to include their payouts in these reports.
+          You can export statements from the VRBO Owner portal.
         </div>
       </div>
 
