@@ -10,6 +10,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/requests", label: "Booking Requests", minRole: "PROPERTY_MANAGER" },
     { href: "/admin/rates", label: "Rates & Pricing", minRole: "PROPERTY_MANAGER" },
     { href: "/admin/holidays", label: "Holidays, Peaks & Blocked Dates", minRole: "PROPERTY_MANAGER" },
+    { href: "/admin/reports", label: "Reports", minRole: "PROPERTY_MANAGER" },
     { href: "/admin/users", label: "Users & Invites", minRole: "OWNER" },
     { href: "/admin/emails", label: "Email Recipients", minRole: "PROPERTY_MANAGER" },
   ];
