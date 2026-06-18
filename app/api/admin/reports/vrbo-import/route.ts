@@ -41,19 +41,12 @@ export async function POST(request: NextRequest) {
     const taxWithheld = parseFloat(row['Tax Withheld'] || '0') || 0;
     const currency = row['Payout currency'] || 'USD';
 
-    // Try to match existing VRBO booking
-    // IMPORTANT:
-    // - CSV "Reservation ID" (e.g. HA-Y7Q22R) is the friendly code from VRBO owner portal / payout reports.
-    // - iCal sync stores a completely different opaque UID into externalId.
-    // Primary match by externalId almost never succeeds.
-    let matchedBooking = await prisma.bookingRequest.findFirst({
-      where: {
-        source: 'VRBO',
-        externalId: resId,
-      },
-    });
-
-    let matchMethod = matchedBooking ? 'externalId' : null;
+    // Match to existing VRBO booking using dates only.
+    // We deliberately do NOT match using the CSV "Reservation ID" (HA-...) because
+    // iCal sync stores the iCal UID (a UUID) in externalId, never the friendly Reservation ID.
+    // Reservation ID from CSV is only stored in VrboPayout.reservationId.
+    let matchedBooking: any = null;
+    let matchMethod: string | null = null;
 
     let csvStartKey: string | undefined;
     let csvEndKey: string | undefined;
@@ -65,7 +58,7 @@ export async function POST(request: NextRequest) {
       return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
     }
 
-    if (!matchedBooking && checkIn && checkOut) {
+    if (checkIn && checkOut) {
       const firstName = (row['Traveler First Name'] || '').trim().toLowerCase();
       const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
       const fullTraveler = (row['Traveler First Name'] + ' ' + (row['Traveler Last Name'] || '')).trim().toLowerCase();
@@ -160,8 +153,9 @@ export async function POST(request: NextRequest) {
 
     const bookingRequestId = matchedBooking?.id || null;
 
-    // If we matched via the JS date path we only have partial fields. Re-fetch full record so we can read guestName + pricing.
-    if (matchedBooking && matchMethod && !matchMethod.startsWith('externalId')) {
+    // Re-fetch full record (we only selected limited fields in the date matching queries)
+    // so we can read guestName + pricing for the update/enrichment.
+    if (matchedBooking) {
       const full = await prisma.bookingRequest.findUnique({
         where: { id: matchedBooking.id },
         select: { id: true, guestName: true, pricing: true },
@@ -250,7 +244,7 @@ export async function POST(request: NextRequest) {
     unmatched,
     message: `Imported ${imported} rows. Matched ${matched} to existing VRBO bookings.`,
     debug: {
-      note: 'See debugRows for parsed CSV dates vs actual DB date keys from all VRBO bookings. If keys do not match for the expected booking, that is the cause.',
+      note: 'Reservation ID matching removed. Matching is now purely by dates (with name fallback). debug.rows shows parsed CSV dates vs DB date keys for all source=VRBO bookings.',
       rows: debugRows,
     },
   });
