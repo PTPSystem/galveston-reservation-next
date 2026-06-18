@@ -41,8 +41,10 @@ export async function POST(request: NextRequest) {
     const currency = row['Payout currency'] || 'USD';
 
     // Try to match existing VRBO booking
-    // Note: externalId from iCal sync is a UUID (the iCal UID), while CSV "Reservation ID" is e.g. HA-Y7Q22R.
-    // Primary match rarely succeeds; we rely on robust date + name fallback.
+    // IMPORTANT:
+    // - CSV "Reservation ID" (e.g. HA-Y7Q22R) is the friendly code from VRBO owner portal / payout reports.
+    // - iCal sync stores a completely different opaque UID into externalId.
+    // Primary match by externalId almost never succeeds.
     let matchedBooking = await prisma.bookingRequest.findFirst({
       where: {
         source: 'VRBO',
@@ -50,73 +52,62 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    let matchMethod = matchedBooking ? 'externalId' : null;
+
     if (!matchedBooking && checkIn && checkOut) {
       const firstName = (row['Traveler First Name'] || '').trim().toLowerCase();
       const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
       const fullTraveler = (row['Traveler First Name'] + ' ' + (row['Traveler Last Name'] || '')).trim().toLowerCase();
 
-      // Build a normalized list of name tokens to search for
       const nameTokens = [lastName, firstName, fullTraveler].filter(Boolean);
 
-      // Use date-range matching (day window) + flexible name to survive TZ/parser differences
-      // and placeholder names like "Reserved - Christy" or "Blocked" from iCal feeds.
-      const dayMs = 24 * 60 * 60 * 1000;
+      // Robust approach: fetch all VRBO bookings (small number) and match in JS using date keys.
+      // This avoids any Prisma <-> timestamptz / TZ serialization differences.
+      const allVrbo = await prisma.bookingRequest.findMany({
+        where: { source: 'VRBO' },
+        select: { id: true, startDate: true, endDate: true, guestName: true, externalId: true },
+      });
 
-      // First, try with name tokens (last or first)
-      for (const token of nameTokens) {
-        if (!token) continue;
-        matchedBooking = await prisma.bookingRequest.findFirst({
-          where: {
-            source: 'VRBO',
-            startDate: {
-              gte: new Date(checkIn.getTime()),
-              lt: new Date(checkIn.getTime() + dayMs),
-            },
-            endDate: {
-              gte: new Date(checkOut.getTime()),
-              lt: new Date(checkOut.getTime() + dayMs),
-            },
-            guestName: {
-              contains: token,
-              mode: 'insensitive',
-            },
-          },
-        });
-        if (matchedBooking) break;
+      function toDateKey(d: Date | string): string {
+        const dt = d instanceof Date ? d : new Date(d);
+        return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
       }
 
-      // If still no match, try date range only (no name). For a single-property calendar,
-      // the date window is usually unique among VRBO bookings.
-      if (!matchedBooking) {
-        const candidates = await prisma.bookingRequest.findMany({
-          where: {
-            source: 'VRBO',
-            startDate: {
-              gte: new Date(checkIn.getTime()),
-              lt: new Date(checkIn.getTime() + dayMs),
-            },
-            endDate: {
-              gte: new Date(checkOut.getTime()),
-              lt: new Date(checkOut.getTime() + dayMs),
-            },
-          },
-          orderBy: { id: 'asc' },
-        });
+      const csvStartKey = toDateKey(checkIn);
+      const csvEndKey = toDateKey(checkOut);
 
-        if (candidates.length === 1) {
-          matchedBooking = candidates[0];
-        } else if (candidates.length > 1 && nameTokens.length > 0) {
-          // Pick best candidate by name overlap if multiple on same dates (rare)
-          const best = candidates.find(c => {
-            const gn = (c.guestName || '').toLowerCase();
-            return nameTokens.some(t => gn.includes(t));
-          });
-          matchedBooking = best || candidates[0];
+      const dateMatches = allVrbo.filter(b => {
+        return toDateKey(b.startDate) === csvStartKey && toDateKey(b.endDate) === csvEndKey;
+      });
+
+      // Try name tokens first among the date matches
+      for (const token of nameTokens) {
+        if (!token) continue;
+        const byName = dateMatches.find(b => (b.guestName || '').toLowerCase().includes(token));
+        if (byName) {
+          matchedBooking = byName as any;  // we only selected a few fields, but id is there; later code only uses .id
+          matchMethod = 'date+name:' + token;
+          break;
         }
+      }
+
+      // No name match — fall back to pure date if exactly one (or pick first)
+      if (!matchedBooking && dateMatches.length > 0) {
+        matchedBooking = dateMatches[0] as any;
+        matchMethod = dateMatches.length === 1 ? 'date-only' : 'date-only (first of ' + dateMatches.length + ')';
       }
     }
 
     const bookingRequestId = matchedBooking?.id || null;
+
+    // If we matched via the JS date path we only have partial fields. Re-fetch full record so we can read guestName + pricing.
+    if (matchedBooking && matchMethod && !matchMethod.startsWith('externalId')) {
+      const full = await prisma.bookingRequest.findUnique({
+        where: { id: matchedBooking.id },
+        select: { id: true, guestName: true, pricing: true },
+      });
+      if (full) matchedBooking = full as any;
+    }
 
     // Upsert the payout
     await prisma.vrboPayout.upsert({
@@ -198,6 +189,11 @@ export async function POST(request: NextRequest) {
     matched,
     unmatched,
     message: `Imported ${imported} rows. Matched ${matched} to existing VRBO bookings.`,
+    // Debug info (visible in browser Network tab when you upload)
+    debug: {
+      note: 'Primary externalId match rarely works because iCal UID != CSV Reservation ID',
+      unmatchedCount: unmatched.length,
+    },
   });
 }
 
