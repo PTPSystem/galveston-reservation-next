@@ -355,9 +355,9 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
 
       {/* Notes */}
       <div className="text-xs text-slate-500 space-y-1 px-1">
-        <p>• Gross Revenue and Owner Proceeds for direct bookings come from our quote snapshots.</p>
+        <p>• Gross Revenue, Mgmt Fee and Owner Proceeds include direct quote snapshots + 22%/78% split applied to VRBO gross from imported payouts.</p>
         <p>• VRBO Gross / Payout come from imported owner statement CSVs (use the upload box above).</p>
-        <p>• "Owner / VRBO Payouts" in cards = our ownerProceeds + imported VRBO payouts to you.</p>
+        <p>• "Owner / VRBO Payouts" in cards = our ownerProceeds (incl. 78% VRBO) + imported VRBO payouts to you.</p>
         <p>• Lodging taxes shown are amounts collected (remittance responsibility varies by source).</p>
       </div>
     </div>

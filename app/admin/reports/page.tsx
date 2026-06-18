@@ -125,17 +125,24 @@ export default async function ReportsPage() {
     }
 
     const m = monthlyMap.get(yearMonth);
-    // Always accumulate VRBO specific numbers
-    m.vrboGrossRevenue = (m.vrboGrossRevenue || 0) + (p.grossBookingAmount || 0);
-    m.vrboPayouts = (m.vrboPayouts || 0) + (p.payout || 0);
+    const vGross = p.grossBookingAmount || 0;
+    const vPayout = p.payout || 0;
 
-    // If this payout is not linked to a booking we already counted, add to totals too
+    // Always accumulate VRBO specific numbers
+    m.vrboGrossRevenue = (m.vrboGrossRevenue || 0) + vGross;
+    m.vrboPayouts = (m.vrboPayouts || 0) + vPayout;
+
+    // Apply 22% mgmt fee / 78% owner proceeds to VRBO gross (same as direct)
+    m.grossRevenue = (m.grossRevenue || 0) + vGross;
+    m.managementFees = (m.managementFees || 0) + vGross * 0.22;
+    m.ownerProceeds = (m.ownerProceeds || 0) + vGross * 0.78;
+
+    // If this payout is not linked to a booking we already counted, add the booking count
     if (!p.bookingRequestId) {
       m.bookings += 1;
       m.nights += p.nights;
       m.vrboBookings += 1;
-      m.grossRevenue += p.grossBookingAmount || 0;
-      m.ownerProceeds += p.payout || 0; // for VRBO, payout to owner is the key "proceeds"
+      // gross and ownerProceeds already added above using the 22/78 split
     }
   }
 
