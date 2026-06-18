@@ -308,13 +308,33 @@ function parseVrboCsv(text: string): any[] {
   // Detect delimiter (tab or comma)
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
 
-  const headers = lines[0].split(delimiter).map((h) => h.trim().replace(/^"|"$/g, ''));
+  // Proper CSV row parser that respects quotes (handles commas inside "May 22, 2026" etc.)
+  function parseCsvRow(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === delimiter && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result.map(v => v.replace(/^"|"$/g, ''));
+  }
+
+  const headers = parseCsvRow(lines[0]);
 
   const rows: any[] = [];
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    const values = line.split(delimiter).map((v) => v.trim().replace(/^"|"$/g, ''));
+    const values = parseCsvRow(line);
     const row: any = {};
     headers.forEach((h, j) => {
       row[h] = values[j] || '';
