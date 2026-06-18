@@ -41,9 +41,10 @@ export async function POST(request: NextRequest) {
     const taxWithheld = parseFloat(row['Tax Withheld'] || '0') || 0;
     const currency = row['Payout currency'] || 'USD';
 
-    // Match to existing VRBO booking using dates only (no reservation ID involved).
-    // The CSV "Reservation ID" (HA-...) is NEVER used to query or match BookingRequest.
-    // It is only stored in VrboPayout.reservationId. Booking match uses only start/end date keys + guestName contains.
+    // Match to existing VRBO booking **purely by dates** (start + end).
+    // NO name matching at all. 
+    // The CSV "Reservation ID" (HA-...) is NEVER used to query or match any BookingRequest.
+    // It is only stored in VrboPayout.reservationId.
     let matchedBooking: any = null;
     let matchMethod: string | null = null;
 
@@ -51,7 +52,6 @@ export async function POST(request: NextRequest) {
     let csvEndKey: string | undefined;
     let allVrbo: any[] | undefined;
     let dateMatches: any[] | undefined;
-    let nameTokens: string[] = [];
 
     function toDateKey(d: Date | string): string {
       const dt = d instanceof Date ? d : new Date(d);
@@ -63,15 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (checkIn && checkOut) {
-      const firstName = (row['Traveler First Name'] || '').trim().toLowerCase();
-      const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
-      const fullTraveler = (row['Traveler First Name'] + ' ' + (row['Traveler Last Name'] || '')).trim().toLowerCase();
-
-      nameTokens = [lastName, firstName, fullTraveler].filter(Boolean);
-
-      // Robust approach: fetch all VRBO bookings (small number) and match in JS using date keys.
-      // This avoids any Prisma <-> timestamptz / TZ serialization differences.
-      // Fetch all and filter in JS for source to avoid any enum/string query issues
+      // Fetch all and filter in JS (avoids enum query quirks)
       const allBookings = await prisma.bookingRequest.findMany({
         select: { id: true, startDate: true, endDate: true, guestName: true, externalId: true, source: true },
       });
@@ -84,85 +76,26 @@ export async function POST(request: NextRequest) {
         return toDateKey(b.startDate) === csvStartKey && toDateKey(b.endDate) === csvEndKey;
       });
 
-      // Try name tokens first among the date matches
-      for (const token of nameTokens) {
-        if (!token) continue;
-        const byName = dateMatches.find(b => (b.guestName || '').toLowerCase().includes(token));
-        if (byName) {
-          matchedBooking = byName as any;  // we only selected a few fields, but id is there; later code only uses .id
-          matchMethod = 'date+name:' + token;
-          break;
-        }
+      if (dateMatches.length > 0) {
+        matchedBooking = dateMatches[0];
+        matchMethod = dateMatches.length === 1 
+          ? 'date-only' 
+          : `date-only (multiple: ${dateMatches.length}, took first)`;
       }
 
-      // No name match — fall back to pure date if exactly one (or pick first)
-      if (!matchedBooking && dateMatches.length > 0) {
-        matchedBooking = dateMatches[0] as any;
-        matchMethod = dateMatches.length === 1 ? 'date-only' : 'date-only (first of ' + dateMatches.length + ')';
-      }
-
-      // Loose fallback: if still no match (e.g. off-by-one day from iCal toJSDate() TZ handling),
-      // try matching purely on start date key + name token, or just start key if unique.
-      if (!matchedBooking && csvStartKey && allVrbo) {
-        for (const token of nameTokens) {
-          if (!token) continue;
-          const loose = allVrbo.find((b: any) =>
-            toDateKey(b.startDate) === csvStartKey &&
-            (b.guestName || '').toLowerCase().includes(token)
-          );
-          if (loose) {
-            matchedBooking = loose as any;
-            matchMethod = 'loose-start+name:' + token;
-            break;
-          }
-        }
-        if (!matchedBooking) {
-          const startMatches = allVrbo.filter((b: any) => toDateKey(b.startDate) === csvStartKey);
-          if (startMatches.length === 1) {
-            matchedBooking = startMatches[0] as any;
-            matchMethod = 'loose-start-only';
-          } else if (startMatches.length > 1) {
-            // pick best by name if possible
-            const best = startMatches.find((b: any) => nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t)));
-            matchedBooking = (best || startMatches[0]) as any;
-            matchMethod = 'loose-start-multiple';
-          }
-        }
-      }
-
-      // Tolerant matching for legacy data: iCal sync sometimes stored dates
-      // with TZ shift (new Date(y,m,d) in non-UTC runtime -> wrong UTC instant).
-      // This allows matching even if the stored startKey is off by 1 day.
+      // Tolerant fallback for legacy data where iCal sync stored slightly shifted dates
+      // (due to toJSDate() + local TZ on the machine that ran the sync).
       if (!matchedBooking && csvStartKey && allVrbo) {
         const csvStartNum = dateKeyToNumber(csvStartKey);
-        for (const token of nameTokens) {
-          if (!token) continue;
-          const tolerant = allVrbo.find((b: any) => {
-            const dbS = dateKeyToNumber(toDateKey(b.startDate));
-            return Math.abs(dbS - csvStartNum) <= 1 &&
-                   (b.guestName || '').toLowerCase().includes(token);
-          });
-          if (tolerant) {
-            matchedBooking = tolerant as any;
-            matchMethod = 'tolerant-start+name:' + token;
-            break;
-          }
-        }
-        if (!matchedBooking) {
-          const tolerantStarts = allVrbo.filter((b: any) => {
-            const dbS = dateKeyToNumber(toDateKey(b.startDate));
-            return Math.abs(dbS - csvStartNum) <= 1;
-          });
-          if (tolerantStarts.length === 1) {
-            matchedBooking = tolerantStarts[0] as any;
-            matchMethod = 'tolerant-start-only';
-          } else if (tolerantStarts.length > 1) {
-            const best = tolerantStarts.find((b: any) =>
-              nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t))
-            );
-            matchedBooking = (best || tolerantStarts[0]) as any;
-            matchMethod = 'tolerant-start-multiple';
-          }
+        const tolerantStarts = allVrbo.filter((b: any) => {
+          const dbS = dateKeyToNumber(toDateKey(b.startDate));
+          return Math.abs(dbS - csvStartNum) <= 1;
+        });
+        if (tolerantStarts.length > 0) {
+          matchedBooking = tolerantStarts[0];
+          matchMethod = tolerantStarts.length === 1 
+            ? 'tolerant-date-only' 
+            : `tolerant-date-only (multiple, took first)`;
         }
       }
     }
@@ -176,7 +109,6 @@ export async function POST(request: NextRequest) {
       checkOutISO: checkOut ? checkOut.toISOString() : null,
       csvStartKey,
       csvEndKey,
-      nameTokens,
       matchMethod: matchMethod || 'none',
       matchedId: matchedBooking?.id || null,
       dateMatchesCount: (typeof dateMatches !== 'undefined' ? dateMatches.length : 0),
@@ -191,7 +123,6 @@ export async function POST(request: NextRequest) {
         const startMatch = bStartKey === csvStartKey;
         const endMatch = bEndKey === csvEndKey;
         const tolerantStartMatch = Math.abs(dateKeyToNumber(bStartKey) - dateKeyToNumber(csvStartKey || '')) <= 1;
-        const nameWouldMatch = nameTokens ? nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t)) : false;
         return {
           id: b.id,
           guestName: b.guestName,
@@ -201,7 +132,6 @@ export async function POST(request: NextRequest) {
           startMatch,
           endMatch,
           tolerantStartMatch,
-          nameWouldMatch,
         };
       });
     }
@@ -300,7 +230,7 @@ export async function POST(request: NextRequest) {
     unmatched,
     message: `Imported ${imported} rows. Matched ${matched} to existing VRBO bookings.`,
     debug: {
-      note: 'NO reservation ID / externalId matching is performed for linking to BookingRequest. Only date keys + guestName tokens (and tolerant variants). debug.rows shows the parsed CSV keys, matchMethod (should be date-*, loose-*, tolerant-* or none), and keys for every source=VRBO booking.',
+      note: 'Matching is PURELY by dates (exact start+end, with tolerant start-date fallback for legacy data). No names or Reservation IDs are used for matching BookingRequests. debug.rows shows parsed keys + matchMethod (date-only / tolerant-date-only / none).',
       rows: debugRows,
     },
   });

@@ -153,7 +153,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       <div className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-2">Import VRBO Payout CSV</h3>
         <p className="text-sm text-slate-600 mb-3">
-          Upload the monthly owner statement CSV exported from VRBO. Matching to existing VRBO bookings is done purely by dates (with name token fallback). We never use the CSV Reservation ID (HA- codes) for matching to bookings (it is only stored for the payout record). Real names from the CSV will also upgrade placeholder guest names like "Reserved - ...".
+          Upload the monthly owner statement CSV exported from VRBO. Matching to existing VRBO bookings is done **purely by dates** (start + end only). No names or Reservation IDs are used for matching. The CSV names are still stored in the payout record and used only to upgrade placeholder names (e.g. "Reserved - ...") after a successful date match.
         </p>
         <div
           onClick={triggerFileSelect}
@@ -189,7 +189,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
             <div>{importResult.message || importResult.error}</div>
             {importResult.unmatched?.length > 0 && (
               <div className="mt-1.5 text-xs opacity-80">
-                Unmatched CSV rows (not linked to any VRBO booking via dates + name):<br />
+                Unmatched CSV rows (no matching VRBO booking by date):<br />
                 {importResult.unmatched.slice(0, 8).join(', ')}{importResult.unmatched.length > 8 ? ' ...' : ''}
               </div>
             )}
