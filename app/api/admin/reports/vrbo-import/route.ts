@@ -52,14 +52,25 @@ export async function POST(request: NextRequest) {
     let csvEndKey: string | undefined;
     let allVrbo: any[] | undefined;
     let dateMatches: any[] | undefined;
+    let csvStartParts: any = null;
+    let csvEndParts: any = null;
 
-    function toDateKey(d: Date | string): string {
+    function getDateParts(d: Date | string) {
       const dt = d instanceof Date ? d : new Date(d);
-      return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
+      return {
+        year: dt.getUTCFullYear(),
+        month: dt.getUTCMonth() + 1,
+        day: dt.getUTCDate(),
+      };
+    }
+
+    function getDateKey(d: Date | string): string {
+      const p = getDateParts(d);
+      return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
     }
 
     function dateKeyToNumber(key: string): number {
-      return parseInt(key.replace(/-/g, ''), 10);
+      return parseInt(key.replace(/-/g, ""), 10);
     }
 
     if (checkIn && checkOut) {
@@ -69,11 +80,21 @@ export async function POST(request: NextRequest) {
       });
       allVrbo = allBookings.filter((b: any) => b.source === 'VRBO');
 
-      csvStartKey = toDateKey(checkIn);
-      csvEndKey = toDateKey(checkOut);
+      csvStartKey = getDateKey(checkIn);
+      csvEndKey = getDateKey(checkOut);
+
+      csvStartParts = getDateParts(checkIn);
+      csvEndParts = getDateParts(checkOut);
 
       dateMatches = allVrbo.filter(b => {
-        return toDateKey(b.startDate) === csvStartKey && toDateKey(b.endDate) === csvEndKey;
+        const dbStart = getDateParts(b.startDate);
+        const dbEnd = getDateParts(b.endDate);
+        return dbStart.year === csvStartParts.year &&
+               dbStart.month === csvStartParts.month &&
+               dbStart.day === csvStartParts.day &&
+               dbEnd.year === csvEndParts.year &&
+               dbEnd.month === csvEndParts.month &&
+               dbEnd.day === csvEndParts.day;
       });
 
       if (dateMatches.length > 0) {
@@ -85,11 +106,15 @@ export async function POST(request: NextRequest) {
 
       // Tolerant fallback for legacy data where iCal sync stored slightly shifted dates
       // (due to toJSDate() + local TZ on the machine that ran the sync).
-      if (!matchedBooking && csvStartKey && allVrbo) {
-        const csvStartNum = dateKeyToNumber(csvStartKey);
+      if (!matchedBooking && csvStartParts && allVrbo) {
         const tolerantStarts = allVrbo.filter((b: any) => {
-          const dbS = dateKeyToNumber(toDateKey(b.startDate));
-          return Math.abs(dbS - csvStartNum) <= 1;
+          const dbStart = getDateParts(b.startDate);
+          const dayDiff = Math.abs(
+            (dbStart.year - csvStartParts.year) * 365 +
+            (dbStart.month - csvStartParts.month) * 30 +
+            (dbStart.day - csvStartParts.day)
+          );
+          return dayDiff <= 1;
         });
         if (tolerantStarts.length > 0) {
           matchedBooking = tolerantStarts[0];
@@ -105,10 +130,12 @@ export async function POST(request: NextRequest) {
       resId,
       rawCheckIn: row['Check-in'] || row['Check In'] || row['check-in'],
       rawCheckOut: row['Check-out'] || row['Check Out'] || row['check-out'],
-      checkInISO: checkIn ? checkIn.toISOString() : null,
-      checkOutISO: checkOut ? checkOut.toISOString() : null,
+      parsedCheckIn: checkIn ? checkIn.toISOString() : null,
+      parsedCheckOut: checkOut ? checkOut.toISOString() : null,
       csvStartKey,
       csvEndKey,
+      csvStartParts,
+      csvEndParts,
       matchMethod: matchMethod || 'none',
       matchedId: matchedBooking?.id || null,
       dateMatchesCount: (typeof dateMatches !== 'undefined' ? dateMatches.length : 0),
@@ -118,17 +145,32 @@ export async function POST(request: NextRequest) {
     }
     if (typeof allVrbo !== 'undefined' && allVrbo.length < 30) {
       thisDebug.allVrboKeys = allVrbo.map((b: any) => {
-        const bStartKey = toDateKey(b.startDate);
-        const bEndKey = toDateKey(b.endDate);
-        const startMatch = bStartKey === csvStartKey;
-        const endMatch = bEndKey === csvEndKey;
-        const tolerantStartMatch = Math.abs(dateKeyToNumber(bStartKey) - dateKeyToNumber(csvStartKey || '')) <= 1;
+        const bStartParts = getDateParts(b.startDate);
+        const bEndParts = getDateParts(b.endDate);
+        const bStartKey = getDateKey(b.startDate);
+        const bEndKey = getDateKey(b.endDate);
+        const startMatch = 
+          bStartParts.year === csvStartParts.year &&
+          bStartParts.month === csvStartParts.month &&
+          bStartParts.day === csvStartParts.day;
+        const endMatch = 
+          bEndParts.year === csvEndParts.year &&
+          bEndParts.month === csvEndParts.month &&
+          bEndParts.day === csvEndParts.day;
+        const dayDiff = Math.abs(
+          (bStartParts.year - csvStartParts.year) * 365 +
+          (bStartParts.month - csvStartParts.month) * 30 +
+          (bStartParts.day - csvStartParts.day)
+        );
+        const tolerantStartMatch = dayDiff <= 1;
         return {
           id: b.id,
           guestName: b.guestName,
           externalId: b.externalId,
           startKey: bStartKey,
           endKey: bEndKey,
+          startParts: bStartParts,
+          endParts: bEndParts,
           startMatch,
           endMatch,
           tolerantStartMatch,
