@@ -41,10 +41,9 @@ export async function POST(request: NextRequest) {
     const taxWithheld = parseFloat(row['Tax Withheld'] || '0') || 0;
     const currency = row['Payout currency'] || 'USD';
 
-    // Match to existing VRBO booking using dates only.
-    // We deliberately do NOT match using the CSV "Reservation ID" (HA-...) because
-    // iCal sync stores the iCal UID (a UUID) in externalId, never the friendly Reservation ID.
-    // Reservation ID from CSV is only stored in VrboPayout.reservationId.
+    // Match to existing VRBO booking using dates only (no reservation ID involved).
+    // The CSV "Reservation ID" (HA-...) is NEVER used to query or match BookingRequest.
+    // It is only stored in VrboPayout.reservationId. Booking match uses only start/end date keys + guestName contains.
     let matchedBooking: any = null;
     let matchMethod: string | null = null;
 
@@ -52,6 +51,7 @@ export async function POST(request: NextRequest) {
     let csvEndKey: string | undefined;
     let allVrbo: any[] | undefined;
     let dateMatches: any[] | undefined;
+    let nameTokens: string[] = [];
 
     function toDateKey(d: Date | string): string {
       const dt = d instanceof Date ? d : new Date(d);
@@ -67,14 +67,15 @@ export async function POST(request: NextRequest) {
       const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
       const fullTraveler = (row['Traveler First Name'] + ' ' + (row['Traveler Last Name'] || '')).trim().toLowerCase();
 
-      const nameTokens = [lastName, firstName, fullTraveler].filter(Boolean);
+      nameTokens = [lastName, firstName, fullTraveler].filter(Boolean);
 
       // Robust approach: fetch all VRBO bookings (small number) and match in JS using date keys.
       // This avoids any Prisma <-> timestamptz / TZ serialization differences.
-      allVrbo = await prisma.bookingRequest.findMany({
-        where: { source: 'VRBO' },
-        select: { id: true, startDate: true, endDate: true, guestName: true, externalId: true },
+      // Fetch all and filter in JS for source to avoid any enum/string query issues
+      const allBookings = await prisma.bookingRequest.findMany({
+        select: { id: true, startDate: true, endDate: true, guestName: true, externalId: true, source: true },
       });
+      allVrbo = allBookings.filter((b: any) => b.source === 'VRBO');
 
       csvStartKey = toDateKey(checkIn);
       csvEndKey = toDateKey(checkOut);
@@ -169,10 +170,13 @@ export async function POST(request: NextRequest) {
     // Collect debug for this row (will be returned in response)
     const thisDebug: any = {
       resId,
+      rawCheckIn: row['Check-in'] || row['Check In'] || row['check-in'],
+      rawCheckOut: row['Check-out'] || row['Check Out'] || row['check-out'],
       checkInISO: checkIn ? checkIn.toISOString() : null,
       checkOutISO: checkOut ? checkOut.toISOString() : null,
       csvStartKey,
       csvEndKey,
+      nameTokens,
       matchMethod: matchMethod || 'none',
       matchedId: matchedBooking?.id || null,
       dateMatchesCount: (typeof dateMatches !== 'undefined' ? dateMatches.length : 0),
@@ -181,13 +185,25 @@ export async function POST(request: NextRequest) {
       thisDebug.dateMatches = dateMatches.map((d: any) => ({ id: d.id, guestName: d.guestName, externalId: d.externalId }));
     }
     if (typeof allVrbo !== 'undefined' && allVrbo.length < 30) {
-      thisDebug.allVrboKeys = allVrbo.map((b: any) => ({
-        id: b.id,
-        guestName: b.guestName,
-        externalId: b.externalId,
-        startKey: toDateKey(b.startDate),
-        endKey: toDateKey(b.endDate),
-      }));
+      thisDebug.allVrboKeys = allVrbo.map((b: any) => {
+        const bStartKey = toDateKey(b.startDate);
+        const bEndKey = toDateKey(b.endDate);
+        const startMatch = bStartKey === csvStartKey;
+        const endMatch = bEndKey === csvEndKey;
+        const tolerantStartMatch = Math.abs(dateKeyToNumber(bStartKey) - dateKeyToNumber(csvStartKey || '')) <= 1;
+        const nameWouldMatch = nameTokens ? nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t)) : false;
+        return {
+          id: b.id,
+          guestName: b.guestName,
+          externalId: b.externalId,
+          startKey: bStartKey,
+          endKey: bEndKey,
+          startMatch,
+          endMatch,
+          tolerantStartMatch,
+          nameWouldMatch,
+        };
+      });
     }
     debugRows.push(thisDebug);
 
@@ -284,7 +300,7 @@ export async function POST(request: NextRequest) {
     unmatched,
     message: `Imported ${imported} rows. Matched ${matched} to existing VRBO bookings.`,
     debug: {
-      note: 'Reservation ID matching removed. Matching is now purely by dates (with name fallback). debug.rows shows parsed CSV dates vs DB date keys for all source=VRBO bookings.',
+      note: 'NO reservation ID / externalId matching is performed for linking to BookingRequest. Only date keys + guestName tokens (and tolerant variants). debug.rows shows the parsed CSV keys, matchMethod (should be date-*, loose-*, tolerant-* or none), and keys for every source=VRBO booking.',
       rows: debugRows,
     },
   });
