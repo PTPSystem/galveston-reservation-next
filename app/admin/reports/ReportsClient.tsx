@@ -153,7 +153,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       <div className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-2">Import VRBO Payout CSV</h3>
         <p className="text-sm text-slate-600 mb-3">
-          Upload the monthly owner statement CSV exported from VRBO. We will match rows to existing VRBO-synced bookings by Reservation ID (or dates + last name fallback) and store the payout details for reporting.
+          Upload the monthly owner statement CSV exported from VRBO. We match by dates (robust day-range matching) + traveler name tokens. (Reservation ID from CSV rarely matches the iCal UID used as externalId.) Real names from the CSV will also upgrade placeholder guest names like "Reserved - ...".
         </p>
         <div
           onClick={triggerFileSelect}
