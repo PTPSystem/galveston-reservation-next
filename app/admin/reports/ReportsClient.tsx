@@ -153,7 +153,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       <div className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-2">Import VRBO Payout CSV</h3>
         <p className="text-sm text-slate-600 mb-3">
-          Upload the monthly owner statement CSV exported from VRBO. Matching to existing VRBO bookings is done **purely by dates** (start + end only). No names or Reservation IDs are used for matching. The CSV names are still stored in the payout record and used only to upgrade placeholder names (e.g. "Reserved - ...") after a successful date match.
+          Upload the monthly owner statement CSV exported from VRBO. Matching to existing VRBO bookings is done **purely by dates** (start + end only, with tolerant fallback). No names or Reservation IDs are used for matching. After a date match, placeholder names like "Reserved - ..." may be upgraded using the CSV name. When upload fails to match, expand the Debug section below to see the exact parsed date parts from your CSV vs the ones in the DB.
         </p>
         <div
           onClick={triggerFileSelect}
@@ -193,6 +193,13 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 {importResult.unmatched.slice(0, 8).join(', ')}{importResult.unmatched.length > 8 ? ' ...' : ''}
               </div>
             )}
+            {importResult.debug && (
+              <details className="mt-2 text-[10px]">
+                <summary className="cursor-pointer">Debug (click to see parsed dates, keys, and VRBO bookings)</summary>
+                <pre className="mt-1 bg-white p-1 rounded overflow-auto max-h-64 text-[9px]">{JSON.stringify(importResult.debug, null, 2)}</pre>
+              </details>
+            )}
+            <div className="mt-1 text-[9px] opacity-70">Tip: The debug above shows exactly what the code parsed from your CSV (rawCheckIn + csvStartParts) and the date parts from every VRBO booking in the DB (startParts). Look for the booking with 2026-05-22 to see if startMatch is true.</div>
             {importResult.success && (
               <button 
                 onClick={() => window.location.reload()} 

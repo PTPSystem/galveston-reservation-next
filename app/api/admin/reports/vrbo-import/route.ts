@@ -106,21 +106,44 @@ export async function POST(request: NextRequest) {
 
       // Tolerant fallback for legacy data where iCal sync stored slightly shifted dates
       // (due to toJSDate() + local TZ on the machine that ran the sync).
-      if (!matchedBooking && csvStartParts && allVrbo) {
+      if (!matchedBooking && csvStartParts && csvEndParts && allVrbo) {
         const tolerantStarts = allVrbo.filter((b: any) => {
           const dbStart = getDateParts(b.startDate);
-          const dayDiff = Math.abs(
+          const dbEnd = getDateParts(b.endDate);
+          const startDayDiff = Math.abs(
             (dbStart.year - csvStartParts.year) * 365 +
             (dbStart.month - csvStartParts.month) * 30 +
             (dbStart.day - csvStartParts.day)
           );
-          return dayDiff <= 1;
+          const endDayDiff = Math.abs(
+            (dbEnd.year - csvEndParts.year) * 365 +
+            (dbEnd.month - csvEndParts.month) * 30 +
+            (dbEnd.day - csvEndParts.day)
+          );
+          return startDayDiff <= 1 && endDayDiff <= 1;
         });
         if (tolerantStarts.length > 0) {
           matchedBooking = tolerantStarts[0];
           matchMethod = tolerantStarts.length === 1 
             ? 'tolerant-date-only' 
             : `tolerant-date-only (multiple, took first)`;
+        }
+      }
+
+      // Final fallback: match on start date only (pure date) if start matches exactly.
+      // This ensures we link based on date even if end date has slight difference from legacy data.
+      if (!matchedBooking && csvStartParts && allVrbo) {
+        const startOnlyMatches = allVrbo.filter((b: any) => {
+          const dbStart = getDateParts(b.startDate);
+          return dbStart.year === csvStartParts.year &&
+                 dbStart.month === csvStartParts.month &&
+                 dbStart.day === csvStartParts.day;
+        });
+        if (startOnlyMatches.length > 0) {
+          matchedBooking = startOnlyMatches[0];
+          matchMethod = startOnlyMatches.length === 1 
+            ? 'start-date-only' 
+            : `start-date-only (multiple, took first)`;
         }
       }
     }
