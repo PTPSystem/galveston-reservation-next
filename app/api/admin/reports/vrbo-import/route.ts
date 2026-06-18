@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
       return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
     }
 
+    function dateKeyToNumber(key: string): number {
+      return parseInt(key.replace(/-/g, ''), 10);
+    }
+
     if (checkIn && checkOut) {
       const firstName = (row['Traveler First Name'] || '').trim().toLowerCase();
       const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
@@ -121,6 +125,42 @@ export async function POST(request: NextRequest) {
             const best = startMatches.find((b: any) => nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t)));
             matchedBooking = (best || startMatches[0]) as any;
             matchMethod = 'loose-start-multiple';
+          }
+        }
+      }
+
+      // Tolerant matching for legacy data: iCal sync sometimes stored dates
+      // with TZ shift (new Date(y,m,d) in non-UTC runtime -> wrong UTC instant).
+      // This allows matching even if the stored startKey is off by 1 day.
+      if (!matchedBooking && csvStartKey && allVrbo) {
+        const csvStartNum = dateKeyToNumber(csvStartKey);
+        for (const token of nameTokens) {
+          if (!token) continue;
+          const tolerant = allVrbo.find((b: any) => {
+            const dbS = dateKeyToNumber(toDateKey(b.startDate));
+            return Math.abs(dbS - csvStartNum) <= 1 &&
+                   (b.guestName || '').toLowerCase().includes(token);
+          });
+          if (tolerant) {
+            matchedBooking = tolerant as any;
+            matchMethod = 'tolerant-start+name:' + token;
+            break;
+          }
+        }
+        if (!matchedBooking) {
+          const tolerantStarts = allVrbo.filter((b: any) => {
+            const dbS = dateKeyToNumber(toDateKey(b.startDate));
+            return Math.abs(dbS - csvStartNum) <= 1;
+          });
+          if (tolerantStarts.length === 1) {
+            matchedBooking = tolerantStarts[0] as any;
+            matchMethod = 'tolerant-start-only';
+          } else if (tolerantStarts.length > 1) {
+            const best = tolerantStarts.find((b: any) =>
+              nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t))
+            );
+            matchedBooking = (best || tolerantStarts[0]) as any;
+            matchMethod = 'tolerant-start-multiple';
           }
         }
       }

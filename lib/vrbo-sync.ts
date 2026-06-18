@@ -63,11 +63,26 @@ export async function syncVrboCalendar(): Promise<{
 
       if (!event.startDate || !event.endDate) continue;
 
+      // Force UTC midnight dates using the iCal components directly.
+      // Previously toJSDate() used local-time new Date(y, m, d) which produced
+      // different UTC instants depending on the machine's timezone (Vercel=UTC vs local dev).
+      // That caused the date-key matching in CSV import to fail for "May 22" etc.
+      const start = new Date(Date.UTC(
+        event.startDate.year,
+        event.startDate.month - 1,
+        event.startDate.day
+      ));
+      const end = new Date(Date.UTC(
+        event.endDate.year,
+        event.endDate.month - 1,
+        event.endDate.day
+      ));
+
       vrboEvents.push({
         uid: event.uid || `generated-${Date.now()}`,
         summary: event.summary || 'VRBO Booking',
-        start: event.startDate.toJSDate(),
-        end: event.endDate.toJSDate(),
+        start,
+        end,
       });
     }
 
