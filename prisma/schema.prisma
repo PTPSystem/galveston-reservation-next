@@ -263,3 +263,15 @@ model Invite {
   usedAt    DateTime?
   createdAt DateTime @default(now())
 }
+
+model OwnerExpense {
+  id          Int      @id @default(autoincrement())
+  description String
+  date        DateTime
+  amount      Float
+  attachment  String?  // base64 data URL or external link for receipt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("owner_expenses")
+}

@@ -18,6 +18,7 @@ interface MonthlySummary {
   vrboBookings: number;
   vrboGrossRevenue?: number;
   vrboPayouts?: number;
+  expenses?: number;
 }
 
 interface YearlyData {
@@ -28,6 +29,7 @@ interface YearlyData {
   managementFees: number;
   vrboGrossRevenue?: number;
   vrboPayouts?: number;
+  expenses?: number;
 }
 
 interface ReportsClientProps {
@@ -65,6 +67,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       acc.ownerProceeds += m.ownerProceeds;
       acc.vrboGrossRevenue = (acc.vrboGrossRevenue || 0) + (m.vrboGrossRevenue || 0);
       acc.vrboPayouts = (acc.vrboPayouts || 0) + (m.vrboPayouts || 0);
+      acc.expenses = (acc.expenses || 0) + (m.expenses || 0);
       return acc;
     },
     {
@@ -77,6 +80,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       ownerProceeds: 0,
       vrboGrossRevenue: 0,
       vrboPayouts: 0,
+      expenses: 0,
     }
   );
 
@@ -229,7 +233,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
           </select>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 w-full sm:w-auto">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 w-full sm:w-auto">
           <div className="bg-white rounded-2xl border p-4">
             <div className="text-xs text-slate-500">Bookings</div>
             <div className="text-2xl font-semibold text-slate-900 mt-1">{yearTotals.bookings}</div>
@@ -251,9 +255,15 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
             </div>
           </div>
           <div className="bg-white rounded-2xl border p-4">
-            <div className="text-xs text-slate-500">Owner / VRBO Payouts</div>
+            <div className="text-xs text-slate-500">Owner Proceeds</div>
             <div className="text-2xl font-semibold text-emerald-700 mt-1">
-              {formatCurrency(yearTotals.ownerProceeds + (yearTotals.vrboPayouts || 0))}
+              {formatCurrency(yearTotals.ownerProceeds)}
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border p-4">
+            <div className="text-xs text-slate-500">Expenses (to Owner)</div>
+            <div className="text-2xl font-semibold text-red-600 mt-1">
+              {formatCurrency(yearTotals.expenses || 0)}
             </div>
           </div>
         </div>
@@ -280,6 +290,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 <th className="px-4 py-3 text-right font-semibold">Taxes</th>
                 <th className="px-4 py-3 text-right font-semibold">Mgmt Fee</th>
                 <th className="px-4 py-3 text-right font-semibold">Owner Proceeds</th>
+                <th className="px-4 py-3 text-right font-semibold">Expenses</th>
                 <th className="px-4 py-3 text-right font-semibold">VRBO Gross</th>
                 <th className="px-6 py-3 text-right font-semibold">VRBO Payout</th>
               </tr>
@@ -287,7 +298,7 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
             <tbody className="divide-y">
               {filteredMonths.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
                     No data for {selectedYear}.
                   </td>
                 </tr>
@@ -311,6 +322,9 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                   </td>
                   <td className="px-4 py-4 text-right font-semibold text-emerald-700">
                     {formatCurrency(month.ownerProceeds)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-red-600">
+                    {formatCurrency(month.expenses || 0)}
                   </td>
                   <td className="px-4 py-4 text-right text-blue-600">
                     {formatCurrency(month.vrboGrossRevenue || 0)}
@@ -341,6 +355,9 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 <td className="px-4 py-3 text-right text-emerald-700">
                   {formatCurrency(yearTotals.ownerProceeds)}
                 </td>
+                <td className="px-4 py-3 text-right text-red-600">
+                  {formatCurrency(yearTotals.expenses || 0)}
+                </td>
                 <td className="px-4 py-3 text-right text-blue-600">
                   {formatCurrency(yearTotals.vrboGrossRevenue || 0)}
                 </td>
@@ -356,8 +373,8 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       {/* Notes */}
       <div className="text-xs text-slate-500 space-y-1 px-1">
         <p>• Gross Revenue, Mgmt Fee and Owner Proceeds include direct quote snapshots + 22%/78% split applied to VRBO gross from imported payouts.</p>
+        <p>• Owner Expenses are deducted from Owner Proceeds (entered via /admin/expenses).</p>
         <p>• VRBO Gross / Payout come from imported owner statement CSVs (use the upload box above).</p>
-        <p>• "Owner / VRBO Payouts" in cards = our ownerProceeds (incl. 78% VRBO) + imported VRBO payouts to you.</p>
         <p>• Lodging taxes shown are amounts collected (remittance responsibility varies by source).</p>
       </div>
     </div>

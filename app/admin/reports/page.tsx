@@ -77,6 +77,7 @@ export default async function ReportsPage() {
         vrboBookings: 0,
         vrboGrossRevenue: 0,
         vrboPayouts: 0,
+        expenses: 0,
       });
     }
 
@@ -100,6 +101,9 @@ export default async function ReportsPage() {
   // Also pull in any VRBO payouts (linked or not) and merge into monthly summaries
   const vrboPayouts = await prisma.vrboPayout.findMany();
 
+  // Fetch owner expenses and deduct from owner's proceeds
+  const ownerExpenses = await prisma.ownerExpense.findMany();
+
   for (const p of vrboPayouts) {
     const start = new Date(p.checkIn);
     const yearMonth = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
@@ -121,6 +125,7 @@ export default async function ReportsPage() {
         vrboBookings: 0,
         vrboGrossRevenue: 0,
         vrboPayouts: 0,
+        expenses: 0,
       });
     }
 
@@ -146,6 +151,36 @@ export default async function ReportsPage() {
     }
   }
 
+  // Deduct owner expenses from ownerProceeds by month
+  for (const exp of ownerExpenses) {
+    const start = new Date(exp.date);
+    const yearMonth = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+
+    if (!monthlyMap.has(yearMonth)) {
+      monthlyMap.set(yearMonth, {
+        yearMonth,
+        monthLabel: start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        bookings: 0,
+        nights: 0,
+        grossRevenue: 0,
+        cleaningFees: 0,
+        jamaicaTaxes: 0,
+        texasTaxes: 0,
+        managementFees: 0,
+        ownerProceeds: 0,
+        directBookings: 0,
+        vrboBookings: 0,
+        vrboGrossRevenue: 0,
+        vrboPayouts: 0,
+        expenses: 0,
+      });
+    }
+
+    const m = monthlyMap.get(yearMonth);
+    m.expenses = (m.expenses || 0) + exp.amount;
+    m.ownerProceeds = (m.ownerProceeds || 0) - exp.amount;
+  }
+
   const monthlySummaries = Array.from(monthlyMap.values()).sort((a, b) =>
     b.yearMonth.localeCompare(a.yearMonth)
   );
@@ -163,6 +198,7 @@ export default async function ReportsPage() {
         acc.managementFees += m.managementFees;
         acc.vrboGrossRevenue = (acc.vrboGrossRevenue || 0) + (m.vrboGrossRevenue || 0);
         acc.vrboPayouts = (acc.vrboPayouts || 0) + (m.vrboPayouts || 0);
+        acc.expenses = (acc.expenses || 0) + (m.expenses || 0);
         return acc;
       },
       {
@@ -173,6 +209,7 @@ export default async function ReportsPage() {
         managementFees: 0,
         vrboGrossRevenue: 0,
         vrboPayouts: 0,
+        expenses: 0,
       }
     );
 
