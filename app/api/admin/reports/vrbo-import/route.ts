@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   let imported = 0;
   let matched = 0;
   let unmatched: string[] = [];
+  const debugRows: any[] = [];
 
   for (const row of rows) {
     const resId = row['Reservation ID'] || row['ReservationID'] || row['reservation id'];
@@ -54,6 +55,16 @@ export async function POST(request: NextRequest) {
 
     let matchMethod = matchedBooking ? 'externalId' : null;
 
+    let csvStartKey: string | undefined;
+    let csvEndKey: string | undefined;
+    let allVrbo: any[] | undefined;
+    let dateMatches: any[] | undefined;
+
+    function toDateKey(d: Date | string): string {
+      const dt = d instanceof Date ? d : new Date(d);
+      return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    }
+
     if (!matchedBooking && checkIn && checkOut) {
       const firstName = (row['Traveler First Name'] || '').trim().toLowerCase();
       const lastName = (row['Traveler Last Name'] || row['Traveler Last'] || '').trim().toLowerCase();
@@ -63,20 +74,15 @@ export async function POST(request: NextRequest) {
 
       // Robust approach: fetch all VRBO bookings (small number) and match in JS using date keys.
       // This avoids any Prisma <-> timestamptz / TZ serialization differences.
-      const allVrbo = await prisma.bookingRequest.findMany({
+      allVrbo = await prisma.bookingRequest.findMany({
         where: { source: 'VRBO' },
         select: { id: true, startDate: true, endDate: true, guestName: true, externalId: true },
       });
 
-      function toDateKey(d: Date | string): string {
-        const dt = d instanceof Date ? d : new Date(d);
-        return dt.toISOString().slice(0, 10); // YYYY-MM-DD UTC
-      }
+      csvStartKey = toDateKey(checkIn);
+      csvEndKey = toDateKey(checkOut);
 
-      const csvStartKey = toDateKey(checkIn);
-      const csvEndKey = toDateKey(checkOut);
-
-      const dateMatches = allVrbo.filter(b => {
+      dateMatches = allVrbo.filter(b => {
         return toDateKey(b.startDate) === csvStartKey && toDateKey(b.endDate) === csvEndKey;
       });
 
@@ -96,7 +102,61 @@ export async function POST(request: NextRequest) {
         matchedBooking = dateMatches[0] as any;
         matchMethod = dateMatches.length === 1 ? 'date-only' : 'date-only (first of ' + dateMatches.length + ')';
       }
+
+      // Loose fallback: if still no match (e.g. off-by-one day from iCal toJSDate() TZ handling),
+      // try matching purely on start date key + name token, or just start key if unique.
+      if (!matchedBooking && csvStartKey && allVrbo) {
+        for (const token of nameTokens) {
+          if (!token) continue;
+          const loose = allVrbo.find((b: any) =>
+            toDateKey(b.startDate) === csvStartKey &&
+            (b.guestName || '').toLowerCase().includes(token)
+          );
+          if (loose) {
+            matchedBooking = loose as any;
+            matchMethod = 'loose-start+name:' + token;
+            break;
+          }
+        }
+        if (!matchedBooking) {
+          const startMatches = allVrbo.filter((b: any) => toDateKey(b.startDate) === csvStartKey);
+          if (startMatches.length === 1) {
+            matchedBooking = startMatches[0] as any;
+            matchMethod = 'loose-start-only';
+          } else if (startMatches.length > 1) {
+            // pick best by name if possible
+            const best = startMatches.find((b: any) => nameTokens.some(t => (b.guestName || '').toLowerCase().includes(t)));
+            matchedBooking = (best || startMatches[0]) as any;
+            matchMethod = 'loose-start-multiple';
+          }
+        }
+      }
     }
+
+    // Collect debug for this row (will be returned in response)
+    const thisDebug: any = {
+      resId,
+      checkInISO: checkIn ? checkIn.toISOString() : null,
+      checkOutISO: checkOut ? checkOut.toISOString() : null,
+      csvStartKey,
+      csvEndKey,
+      matchMethod: matchMethod || 'none',
+      matchedId: matchedBooking?.id || null,
+      dateMatchesCount: (typeof dateMatches !== 'undefined' ? dateMatches.length : 0),
+    };
+    if (typeof dateMatches !== 'undefined') {
+      thisDebug.dateMatches = dateMatches.map((d: any) => ({ id: d.id, guestName: d.guestName, externalId: d.externalId }));
+    }
+    if (typeof allVrbo !== 'undefined' && allVrbo.length < 30) {
+      thisDebug.allVrboKeys = allVrbo.map((b: any) => ({
+        id: b.id,
+        guestName: b.guestName,
+        externalId: b.externalId,
+        startKey: toDateKey(b.startDate),
+        endKey: toDateKey(b.endDate),
+      }));
+    }
+    debugRows.push(thisDebug);
 
     const bookingRequestId = matchedBooking?.id || null;
 
@@ -189,10 +249,9 @@ export async function POST(request: NextRequest) {
     matched,
     unmatched,
     message: `Imported ${imported} rows. Matched ${matched} to existing VRBO bookings.`,
-    // Debug info (visible in browser Network tab when you upload)
     debug: {
-      note: 'Primary externalId match rarely works because iCal UID != CSV Reservation ID',
-      unmatchedCount: unmatched.length,
+      note: 'See debugRows for parsed CSV dates vs actual DB date keys from all VRBO bookings. If keys do not match for the expected booking, that is the cause.',
+      rows: debugRows,
     },
   });
 }
