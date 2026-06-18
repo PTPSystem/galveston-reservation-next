@@ -78,10 +78,20 @@ export default async function ReportsPage() {
         vrboGrossRevenue: 0,
         vrboPayouts: 0,
         expenses: 0,
+        bookingsList: [],
       });
     }
 
     const monthData = monthlyMap.get(yearMonth);
+    if (!monthData.bookingsList) monthData.bookingsList = [];
+    monthData.bookingsList.push({
+      id: booking.id,
+      guestName: booking.guestName,
+      startDate: booking.startDate.toISOString(),
+      endDate: booking.endDate.toISOString(),
+      source: booking.source,
+      gross: gross,
+    });
     monthData.bookings += 1;
     monthData.nights += nights;
     monthData.grossRevenue += gross;
@@ -137,17 +147,17 @@ export default async function ReportsPage() {
     m.vrboGrossRevenue = (m.vrboGrossRevenue || 0) + vGross;
     m.vrboPayouts = (m.vrboPayouts || 0) + vPayout;
 
-    // Apply 22% mgmt fee / 78% owner proceeds to VRBO gross (same as direct)
-    m.grossRevenue = (m.grossRevenue || 0) + vGross;
-    m.managementFees = (m.managementFees || 0) + vGross * 0.22;
-    m.ownerProceeds = (m.ownerProceeds || 0) + vGross * 0.78;
+    // VRBO Payout goes to Gross Revenue (no separate VRBO fee column)
+    // Apply 22% mgmt / 78% owner on the payout amount
+    m.grossRevenue = (m.grossRevenue || 0) + vPayout;
+    m.managementFees = (m.managementFees || 0) + vPayout * 0.22;
+    m.ownerProceeds = (m.ownerProceeds || 0) + vPayout * 0.78;
 
     // If this payout is not linked to a booking we already counted, add the booking count
     if (!p.bookingRequestId) {
       m.bookings += 1;
       m.nights += p.nights;
       m.vrboBookings += 1;
-      // gross and ownerProceeds already added above using the 22/78 split
     }
   }
 
@@ -173,6 +183,7 @@ export default async function ReportsPage() {
         vrboGrossRevenue: 0,
         vrboPayouts: 0,
         expenses: 0,
+        bookingsList: [],
       });
     }
 

@@ -19,6 +19,14 @@ interface MonthlySummary {
   vrboGrossRevenue?: number;
   vrboPayouts?: number;
   expenses?: number;
+  bookingsList?: Array<{
+    id: number;
+    guestName: string;
+    startDate: string;
+    endDate: string;
+    source: string;
+    gross?: number;
+  }>;
 }
 
 interface YearlyData {
@@ -40,6 +48,7 @@ interface ReportsClientProps {
 
 export default function ReportsClient({ monthlySummaries, yearlyData, currentYear }: ReportsClientProps) {
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -65,7 +74,6 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       acc.totalTaxes += m.jamaicaTaxes + m.texasTaxes;
       acc.managementFees += m.managementFees;
       acc.ownerProceeds += m.ownerProceeds;
-      acc.vrboGrossRevenue = (acc.vrboGrossRevenue || 0) + (m.vrboGrossRevenue || 0);
       acc.vrboPayouts = (acc.vrboPayouts || 0) + (m.vrboPayouts || 0);
       acc.expenses = (acc.expenses || 0) + (m.expenses || 0);
       return acc;
@@ -78,7 +86,6 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       totalTaxes: 0,
       managementFees: 0,
       ownerProceeds: 0,
-      vrboGrossRevenue: 0,
       vrboPayouts: 0,
       expenses: 0,
     }
@@ -222,7 +229,10 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
           <label className="block text-sm font-medium text-slate-700 mb-1">Report Year</label>
           <select
             value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            onChange={(e) => {
+              setSelectedYear(parseInt(e.target.value));
+              setSelectedMonth(null);
+            }}
             className="border rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             {availableYears.map((year) => (
@@ -285,52 +295,51 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 <th className="px-6 py-3 text-left font-semibold">Month</th>
                 <th className="px-4 py-3 text-center font-semibold">Bookings</th>
                 <th className="px-4 py-3 text-center font-semibold">Nights</th>
-                <th className="px-4 py-3 text-right font-semibold">Gross Revenue</th>
-                <th className="px-4 py-3 text-right font-semibold">Cleaning</th>
-                <th className="px-4 py-3 text-right font-semibold">Taxes</th>
-                <th className="px-4 py-3 text-right font-semibold">Mgmt Fee</th>
+                <th className="px-4 py-3 text-right font-semibold bg-green-50 text-green-700">Gross Revenue</th>
+                <th className="px-4 py-3 text-right font-semibold bg-green-50 text-green-700">VRBO Payout</th>
+                <th className="px-4 py-3 text-right font-semibold bg-red-50 text-red-700">Cleaning</th>
+                <th className="px-4 py-3 text-right font-semibold bg-red-50 text-red-700">Taxes</th>
+                <th className="px-4 py-3 text-right font-semibold bg-red-50 text-red-700">Mgmt Fee</th>
+                <th className="px-4 py-3 text-right font-semibold bg-red-50 text-red-700">Expenses</th>
                 <th className="px-4 py-3 text-right font-semibold">Owner Proceeds</th>
-                <th className="px-4 py-3 text-right font-semibold">Expenses</th>
-                <th className="px-4 py-3 text-right font-semibold">VRBO Gross</th>
-                <th className="px-6 py-3 text-right font-semibold">VRBO Payout</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {filteredMonths.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-500">
                     No data for {selectedYear}.
                   </td>
                 </tr>
               )}
               {filteredMonths.map((month) => (
                 <tr key={month.yearMonth} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{month.monthLabel}</td>
+                  <td 
+                    className="px-6 py-4 font-medium text-slate-900 cursor-pointer hover:text-emerald-600"
+                    onClick={() => setSelectedMonth(selectedMonth === month.yearMonth ? null : month.yearMonth)}
+                  >{month.monthLabel}</td>
                   <td className="px-4 py-4 text-center">{month.bookings}</td>
                   <td className="px-4 py-4 text-center">{month.nights}</td>
-                  <td className="px-4 py-4 text-right font-medium text-emerald-600">
+                  <td className="px-4 py-4 text-right font-medium text-green-700 bg-green-50">
                     {formatCurrency(month.grossRevenue)}
                   </td>
-                  <td className="px-4 py-4 text-right text-slate-700">
+                  <td className="px-4 py-4 text-right font-semibold text-green-700 bg-green-50">
+                    {formatCurrency(month.vrboPayouts || 0)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-red-700 bg-red-50">
                     {formatCurrency(month.cleaningFees)}
                   </td>
-                  <td className="px-4 py-4 text-right text-slate-700">
+                  <td className="px-4 py-4 text-right text-red-700 bg-red-50">
                     {formatCurrency(month.jamaicaTaxes + month.texasTaxes)}
                   </td>
-                  <td className="px-4 py-4 text-right text-amber-600">
+                  <td className="px-4 py-4 text-right text-red-700 bg-red-50">
                     {formatCurrency(month.managementFees)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-red-700 bg-red-50">
+                    {formatCurrency(month.expenses || 0)}
                   </td>
                   <td className="px-4 py-4 text-right font-semibold text-emerald-700">
                     {formatCurrency(month.ownerProceeds)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-red-600">
-                    {formatCurrency(month.expenses || 0)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-blue-600">
-                    {formatCurrency(month.vrboGrossRevenue || 0)}
-                  </td>
-                  <td className="px-6 py-4 text-right font-semibold text-blue-700">
-                    {formatCurrency(month.vrboPayouts || 0)}
                   </td>
                 </tr>
               ))}
@@ -340,34 +349,79 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 <td className="px-6 py-3">Total</td>
                 <td className="px-4 py-3 text-center">{yearTotals.bookings}</td>
                 <td className="px-4 py-3 text-center">{yearTotals.nights}</td>
-                <td className="px-4 py-3 text-right text-emerald-600">
+                <td className="px-4 py-3 text-right text-green-700 bg-green-50">
                   {formatCurrency(yearTotals.grossRevenue)}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right font-semibold text-green-700 bg-green-50">
+                  {formatCurrency(yearTotals.vrboPayouts || 0)}
+                </td>
+                <td className="px-4 py-3 text-right text-red-700 bg-red-50">
                   {formatCurrency(yearTotals.cleaningFees)}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right text-red-700 bg-red-50">
                   {formatCurrency(yearTotals.totalTaxes)}
                 </td>
-                <td className="px-4 py-3 text-right text-amber-600">
+                <td className="px-4 py-3 text-right text-red-700 bg-red-50">
                   {formatCurrency(yearTotals.managementFees)}
+                </td>
+                <td className="px-4 py-3 text-right text-red-700 bg-red-50">
+                  {formatCurrency(yearTotals.expenses || 0)}
                 </td>
                 <td className="px-4 py-3 text-right text-emerald-700">
                   {formatCurrency(yearTotals.ownerProceeds)}
-                </td>
-                <td className="px-4 py-3 text-right text-red-600">
-                  {formatCurrency(yearTotals.expenses || 0)}
-                </td>
-                <td className="px-4 py-3 text-right text-blue-600">
-                  {formatCurrency(yearTotals.vrboGrossRevenue || 0)}
-                </td>
-                <td className="px-6 py-3 text-right text-blue-700">
-                  {formatCurrency(yearTotals.vrboPayouts || 0)}
                 </td>
               </tr>
             </tfoot>
           </table>
         </div>
+
+        {selectedMonth && (
+          <div className="border-t p-4 bg-slate-50">
+            {(() => {
+              const m = filteredMonths.find(mm => mm.yearMonth === selectedMonth);
+              if (!m || !m.bookingsList || m.bookingsList.length === 0) {
+                return <div className="text-sm text-slate-500">No bookings recorded for this month.</div>;
+              }
+              return (
+                <div>
+                  <h4 className="font-semibold mb-2">Bookings for {m.monthLabel}</h4>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1">Guest</th>
+                        <th className="py-1">Dates</th>
+                        <th className="py-1">Source</th>
+                        <th className="py-1 text-right">Gross</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.bookingsList.map((b, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-1">{b.guestName}</td>
+                          <td className="py-1 text-xs text-slate-600">
+                            {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                          </td>
+                          <td className="py-1">
+                            <span className={`px-2 py-0.5 rounded text-xs ${b.source === 'VRBO' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {b.source}
+                            </span>
+                          </td>
+                          <td className="py-1 text-right">{formatCurrency(b.gross || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <button 
+                    onClick={() => setSelectedMonth(null)} 
+                    className="mt-2 text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Notes */}
