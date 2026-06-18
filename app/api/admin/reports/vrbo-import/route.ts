@@ -247,6 +247,9 @@ export async function POST(request: NextRequest) {
         taxWithheld,
         raw: row,
         bookingRequestId,
+        checkIn,
+        checkOut,
+        nights: parseInt(row['Nights'] || '0') || 0,
       },
     });
 
