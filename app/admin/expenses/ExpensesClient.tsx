@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Expense {
   id: number;
@@ -21,8 +21,10 @@ export default function ExpensesClient() {
     file: null as File | null,
   });
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [currentAttachment, setCurrentAttachment] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const formRef = useRef<HTMLDivElement>(null);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -46,6 +48,7 @@ export default function ExpensesClient() {
   const resetForm = () => {
     setForm({ description: '', date: '', amount: '', file: null });
     setEditingId(null);
+    setCurrentAttachment(null);
     setError('');
   };
 
@@ -89,6 +92,7 @@ export default function ExpensesClient() {
 
   const handleEdit = (expense: Expense) => {
     setEditingId(expense.id);
+    setCurrentAttachment(expense.attachment);
     setForm({
       description: expense.description,
       date: expense.date.split('T')[0],
@@ -96,6 +100,11 @@ export default function ExpensesClient() {
       file: null,
     });
     setError('');
+
+    // Scroll to the form so the user sees the edit form is now active
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const handleDelete = async (id: number) => {
@@ -123,12 +132,51 @@ export default function ExpensesClient() {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
 
+  const handleViewAttachment = (attachment: string | null, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (!attachment) return;
+
+    // Open data URLs reliably using window.open + document write
+    // This works better than <a target="_blank"> for large base64 data URLs
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.title = 'Receipt';
+      if (attachment.startsWith('data:image')) {
+        win.document.body.innerHTML = `
+          <div style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f8f8f8;">
+            <img src="${attachment}" style="max-width:100%; max-height:100vh; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" alt="Receipt" />
+          </div>
+        `;
+      } else if (attachment.startsWith('data:application/pdf')) {
+        win.document.body.innerHTML = `
+          <iframe src="${attachment}" style="width:100%; height:100vh; border:none;"></iframe>
+        `;
+      } else {
+        // Fallback for other types
+        win.document.body.innerHTML = `
+          <div style="padding:20px; font-family:sans-serif;">
+            <a href="${attachment}" download="receipt">Download Receipt</a>
+          </div>
+        `;
+      }
+    } else {
+      // Last resort fallback
+      const link = document.createElement('a');
+      link.href = attachment;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <div className="space-y-8">
       {/* Form */}
-      <div className="bg-white rounded-2xl border p-6">
+      <div ref={formRef} className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-4">
           {editingId ? 'Edit Expense' : 'Add New Expense'}
         </h3>
@@ -182,6 +230,19 @@ export default function ExpensesClient() {
                 className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
               />
               <p className="text-xs text-slate-500 mt-1">Images or PDFs. Max size depends on your browser.</p>
+              {editingId && currentAttachment && (
+                <div className="mt-1 text-xs text-slate-600">
+                  Current receipt:{' '}
+                  <button
+                    type="button"
+                    onClick={() => handleViewAttachment(currentAttachment)}
+                    className="text-emerald-600 hover:underline"
+                  >
+                    View existing
+                  </button>{' '}
+                  (selecting a new file will replace it)
+                </div>
+              )}
             </div>
           </div>
 
@@ -243,14 +304,12 @@ export default function ExpensesClient() {
                     </td>
                     <td className="px-4 py-4 text-center">
                       {exp.attachment ? (
-                        <a
-                          href={exp.attachment}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={(e) => handleViewAttachment(exp.attachment, e)}
                           className="text-emerald-600 hover:underline text-xs"
                         >
                           View Receipt
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-slate-400 text-xs">—</span>
                       )}
