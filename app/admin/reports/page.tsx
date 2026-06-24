@@ -31,6 +31,15 @@ export default async function ReportsPage() {
     },
   });
 
+  // Fetch VRBO payouts early so we can enrich per-booking gross for lists
+  const vrboPayouts = await prisma.vrboPayout.findMany();
+  const payoutByBookingId = new Map<number, number>();
+  for (const p of vrboPayouts) {
+    if (p.bookingRequestId) {
+      payoutByBookingId.set(p.bookingRequestId, p.payout || 0);
+    }
+  }
+
   // Process into monthly summaries
   const monthlyMap = new Map<string, any>();
 
@@ -53,12 +62,29 @@ export default async function ReportsPage() {
 
     const p = booking.pricing as any;
     if (p) {
-      gross = Number(p.totalGuestPrice) || 0;
-      cleaning = Number(p.cleaningFee) || 0;
-      jamaicaTax = Number(p.jamaicaBeachTax) || 0;
-      texasTax = Number(p.texasStateTax) || 0;
-      mgmtFee = Number(p.managementFee) || 0;
-      ownerProceeds = Number(p.ownerProceeds) || 0;
+      if (booking.source === 'VRBO') {
+        // For VRBO, contribution to summary gross/fees/owner comes from vrboPayouts loop
+        // (to avoid double counting). listGross below is used only for the per-booking list.
+        gross = 0;
+        mgmtFee = 0;
+        ownerProceeds = 0;
+        cleaning = 0;
+        jamaicaTax = 0;
+        texasTax = 0;
+      } else {
+        gross = Number(p.totalGuestPrice) || 0;
+        cleaning = Number(p.cleaningFee) || 0;
+        jamaicaTax = Number(p.jamaicaBeachTax) || 0;
+        texasTax = Number(p.texasStateTax) || 0;
+        mgmtFee = Number(p.managementFee) || 0;
+        ownerProceeds = Number(p.ownerProceeds) || 0;
+      }
+    }
+
+    let listGross = gross;
+    if (booking.source === 'VRBO') {
+      const linkedPayout = payoutByBookingId.get(booking.id) || 0;
+      listGross = linkedPayout || Number(p?.vrboPayout || p?.totalGuestPrice) || 0;
     }
 
     if (!monthlyMap.has(yearMonth)) {
@@ -90,7 +116,7 @@ export default async function ReportsPage() {
       startDate: booking.startDate.toISOString(),
       endDate: booking.endDate.toISOString(),
       source: booking.source,
-      gross: gross,
+      gross: listGross,
     });
     monthData.bookings += 1;
     monthData.nights += nights;
@@ -107,9 +133,6 @@ export default async function ReportsPage() {
       monthData.directBookings += 1;
     }
   }
-
-  // Also pull in any VRBO payouts (linked or not) and merge into monthly summaries
-  const vrboPayouts = await prisma.vrboPayout.findMany();
 
   // Fetch owner expenses and deduct from owner's proceeds
   const ownerExpenses = await prisma.ownerExpense.findMany();
@@ -143,17 +166,17 @@ export default async function ReportsPage() {
     const vGross = p.grossBookingAmount || 0;
     const vPayout = p.payout || 0;
 
-    // Always accumulate VRBO specific numbers
+    // Always accumulate VRBO specific numbers for the dedicated columns
     m.vrboGrossRevenue = (m.vrboGrossRevenue || 0) + vGross;
     m.vrboPayouts = (m.vrboPayouts || 0) + vPayout;
 
-    // VRBO Payout goes to Gross Revenue (no separate VRBO fee column)
-    // Apply 22% mgmt / 78% owner on the payout amount
+    // Add VRBO payout contribution to main columns (using payout as the gross figure)
+    // This applies for both linked and unlinked. The booking loop sets gross=0 for VRBO
+    // to avoid double-counting.
     m.grossRevenue = (m.grossRevenue || 0) + vPayout;
     m.managementFees = (m.managementFees || 0) + vPayout * 0.22;
     m.ownerProceeds = (m.ownerProceeds || 0) + vPayout * 0.78;
 
-    // If this payout is not linked to a booking we already counted, add the booking count
     if (!p.bookingRequestId) {
       m.bookings += 1;
       m.nights += p.nights;

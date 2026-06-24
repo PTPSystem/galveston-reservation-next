@@ -274,6 +274,9 @@ export async function POST(request: NextRequest) {
       const current = (matchedBooking.pricing as any) || {};
       updateData.pricing = {
         ...current,
+        totalGuestPrice: payout,           // VRBO Payout goes to Gross Revenue
+        managementFee: payout * 0.22,
+        ownerProceeds: payout * 0.78,
         vrboGrossBooking: gross,
         vrboDeductions: deductions,
         vrboPayout: payout,
