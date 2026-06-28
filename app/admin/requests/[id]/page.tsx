@@ -17,6 +17,7 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
       adjustments: {
         orderBy: { createdAt: 'desc' },
       },
+      vrboPayout: true,
     },
   });
 
@@ -53,6 +54,17 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
       ...adj,
       createdAt: adj.createdAt.toISOString(),
     })),
+    vrboPayout: bookingRequest.vrboPayout
+      ? {
+          ...bookingRequest.vrboPayout,
+          checkIn: bookingRequest.vrboPayout.checkIn.toISOString().split('T')[0],
+          checkOut: bookingRequest.vrboPayout.checkOut.toISOString().split('T')[0],
+          payoutDate: bookingRequest.vrboPayout.payoutDate
+            ? bookingRequest.vrboPayout.payoutDate.toISOString().split('T')[0]
+            : null,
+          importedAt: bookingRequest.vrboPayout.importedAt.toISOString(),
+        }
+      : null,
   };
 
   const serializedHolidays = holidayPeriods.map(h => ({

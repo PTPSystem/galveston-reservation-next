@@ -16,6 +16,7 @@ interface BookingRequest {
   source: string;
   pricing: any;
   adjustments: any[];
+  vrboPayout?: any;
 }
 
 interface HolidayPeriod {
@@ -70,6 +71,25 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   const isSyncedVRBO = bookingRequest.source === 'VRBO';
 
   const pageTitle = isSyncedVRBO ? 'View VRBO-synced Booking' : 'Quote Price & Approve';
+
+  // Derived view-only financials for VRBO when payout data has been uploaded via CSV
+  const vrboFinancials = (() => {
+    const p = bookingRequest.pricing && typeof bookingRequest.pricing === 'object' ? (bookingRequest.pricing as any) : {};
+    const vp = bookingRequest.vrboPayout || {};
+    const gross = vp.grossBookingAmount ?? p.vrboGrossBooking ?? null;
+    const deductions = vp.deductions ?? p.vrboDeductions ?? null;
+    const payoutAmt = vp.payout ?? p.vrboPayout ?? null;
+    const lodgingTax = vp.lodgingTaxOwnerRemits ?? p.vrboLodgingTaxOwnerRemits ?? null;
+    const taxWithheld = vp.taxWithheld ?? p.vrboTaxWithheld ?? null;
+    const totalGuest = p.totalGuestPrice ?? payoutAmt ?? null;
+    const managementFee = p.managementFee ?? (payoutAmt != null ? payoutAmt * 0.22 : null);
+    const ownerProceeds = p.ownerProceeds ?? (payoutAmt != null ? payoutAmt * 0.78 : null);
+    const payoutDate = vp.payoutDate ?? p.vrboPayoutDate ?? null;
+    const reservationId = vp.reservationId ?? null;
+    const hasData = gross != null || payoutAmt != null || totalGuest != null;
+
+    return { gross, deductions, payout: payoutAmt, lodgingTax, taxWithheld, totalGuest, managementFee, ownerProceeds, payoutDate, reservationId, hasData };
+  })();
 
   // Tax exemptions for friends & family (do not charge or remit city/state taxes)
   const [excludeCityTax, setExcludeCityTax] = useState(false);
@@ -771,13 +791,84 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 <div className="text-slate-900 mt-0.5">{bookingRequest.specialRequests}</div>
               </div>
             )}
-            {bookingRequest.pricing && typeof bookingRequest.pricing === 'object' && (bookingRequest.pricing as any).totalGuestPrice != null && (
-              <div className="pt-2 border-t border-blue-100 text-sm">
-                <span className="text-slate-500">Imported total (from VRBO payout):</span>{' '}
-                <span className="font-semibold text-slate-900">${Number((bookingRequest.pricing as any).totalGuestPrice).toFixed(2)}</span>
-              </div>
-            )}
           </div>
+
+          {/* View-only financial summary when payout/CSV data has been uploaded */}
+          {!vrboFinancials.hasData && (
+            <div className="mt-3 text-xs text-blue-600 italic">No payout or CSV financial data imported yet for this stay. Use the Reports page to upload VRBO owner statement CSV.</div>
+          )}
+
+          {vrboFinancials.hasData && (
+            <div className="mt-4">
+              <div className="text-blue-700 font-medium text-sm mb-2">Financials from VRBO Payout Import — view only</div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Raw Payout Details */}
+                <div className="bg-white border border-blue-100 rounded-xl p-3 text-sm">
+                  <div className="font-semibold text-slate-900 mb-2">Payout Statement</div>
+                  <div className="space-y-1">
+                    {vrboFinancials.gross != null && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Gross Booking Amount</span>
+                        <span className="font-medium text-slate-900">${Number(vrboFinancials.gross).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {vrboFinancials.deductions != null && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Deductions</span>
+                        <span className="font-medium text-slate-900">−${Number(vrboFinancials.deductions).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {vrboFinancials.payout != null && (
+                      <div className="flex justify-between pt-1 border-t border-slate-200 font-semibold">
+                        <span>Net Payout</span>
+                        <span>${Number(vrboFinancials.payout).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {vrboFinancials.payoutDate && (
+                      <div className="text-[10px] text-slate-500 mt-1">Payout date: {vrboFinancials.payoutDate}</div>
+                    )}
+                    {vrboFinancials.reservationId && (
+                      <div className="text-[10px] text-slate-500">Reservation: {vrboFinancials.reservationId}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Imported Split */}
+                <div className="bg-white border border-blue-100 rounded-xl p-3 text-sm">
+                  <div className="font-semibold text-slate-900 mb-2">Revenue &amp; Split (22% / 78%)</div>
+                  <div className="space-y-1">
+                    {vrboFinancials.totalGuest != null && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Gross Revenue</span>
+                        <span className="font-medium text-slate-900">${Number(vrboFinancials.totalGuest).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {vrboFinancials.managementFee != null && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Management Fee (22%)</span>
+                        <span className="font-medium">${Number(vrboFinancials.managementFee).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {vrboFinancials.ownerProceeds != null && (
+                      <div className="flex justify-between pt-1 border-t border-slate-200">
+                        <span className="font-semibold">Owner Proceeds (78%)</span>
+                        <span className="font-bold text-emerald-700">${Number(vrboFinancials.ownerProceeds).toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-2">Taxes remitted per VRBO statement (not re-calculated here).</div>
+                </div>
+              </div>
+
+              {(vrboFinancials.lodgingTax != null || vrboFinancials.taxWithheld != null) && (
+                <div className="mt-2 text-xs bg-white border border-blue-100 rounded-xl px-3 py-1.5 text-slate-600 flex gap-4">
+                  <span>Lodging tax (owner remits): {vrboFinancials.lodgingTax != null ? '$' + Number(vrboFinancials.lodgingTax).toFixed(2) : '—'}</span>
+                  <span>Tax withheld: {vrboFinancials.taxWithheld != null ? '$' + Number(vrboFinancials.taxWithheld).toFixed(2) : '—'}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={() => setShowDeleteModal(true)}
