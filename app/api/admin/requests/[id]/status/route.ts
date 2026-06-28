@@ -13,6 +13,12 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid request ID' }, { status: 400 });
   }
 
+  // Block status changes that imply review/pricing for VRBO
+  const booking = await prisma.bookingRequest.findUnique({ where: { id: requestId }, select: { source: true, status: true } });
+  if (booking?.source === 'VRBO' && ['REVIEWING', 'CONFIRMED'].includes(body.status)) {
+    return NextResponse.json({ error: 'Cannot review or confirm VRBO-synced bookings via this interface' }, { status: 403 });
+  }
+
   const allowedStatuses = ['REVIEWING', 'CONFIRMED', 'REJECTED', 'CANCELLED'] as const;
   const newStatus = body.status;
 

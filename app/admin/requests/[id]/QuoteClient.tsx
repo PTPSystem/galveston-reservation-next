@@ -69,6 +69,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
   const isSyncedVRBO = bookingRequest.source === 'VRBO';
 
+  const pageTitle = isSyncedVRBO ? 'View VRBO-synced Booking' : 'Quote Price & Approve';
+
   // Tax exemptions for friends & family (do not charge or remit city/state taxes)
   const [excludeCityTax, setExcludeCityTax] = useState(false);
   const [excludeStateTax, setExcludeStateTax] = useState(false);
@@ -169,8 +171,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
   // Auto-transition PENDING → REVIEWING when admin opens this screen
   // (matches: "Reviewing - looked at but not approved and send")
+  // Skip entirely for VRBO (no review/pricing workflow)
   useEffect(() => {
-    if (currentStatus === 'PENDING') {
+    if (currentStatus === 'PENDING' && !isSyncedVRBO) {
       const transitionToReviewing = async () => {
         try {
           const res = await fetch(`/api/admin/requests/${bookingRequest.id}/status`, {
@@ -672,7 +675,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
           <a href="/admin/requests" className="text-emerald-600 hover:text-emerald-700 text-sm flex items-center gap-1">
             <i className="fa-solid fa-arrow-left"></i> Back to Requests
           </a>
-          <h1 className="text-xl sm:text-2xl font-semibold mt-1">Quote Price &amp; Approve</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold mt-1">{pageTitle}</h1>
           <div className="text-slate-700 text-sm sm:text-base">{bookingRequest.guestName} • {formattedDateRange}</div>
         </div>
         <div className="sm:text-right text-sm">
@@ -750,6 +753,43 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         </div>
       )}
 
+      {isSyncedVRBO && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <div className="text-blue-700 font-medium mb-3">This is a VRBO-synced booking (source=VRBO). It cannot be reviewed, priced, or confirmed through this interface. Pricing and payouts are managed via VRBO + CSV import.</div>
+
+          {/* Read-only details for VRBO */}
+          <div className="bg-white border border-blue-100 rounded-xl p-4 text-sm space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              <div><span className="text-slate-500">Guest:</span> <span className="font-medium text-slate-900">{bookingRequest.guestName}</span></div>
+              <div><span className="text-slate-500">Email:</span> <span className="text-slate-900">{bookingRequest.guestEmail}</span></div>
+              <div><span className="text-slate-500">Dates:</span> <span className="font-medium text-slate-900">{formattedDateRange}</span></div>
+              <div><span className="text-slate-500">Guests:</span> <span className="text-slate-900">{bookingRequest.numGuests}</span></div>
+            </div>
+            {bookingRequest.specialRequests && (
+              <div className="pt-1">
+                <span className="text-slate-500">Special requests:</span>
+                <div className="text-slate-900 mt-0.5">{bookingRequest.specialRequests}</div>
+              </div>
+            )}
+            {bookingRequest.pricing && typeof bookingRequest.pricing === 'object' && (bookingRequest.pricing as any).totalGuestPrice != null && (
+              <div className="pt-2 border-t border-blue-100 text-sm">
+                <span className="text-slate-500">Imported total (from VRBO payout):</span>{' '}
+                <span className="font-semibold text-slate-900">${Number((bookingRequest.pricing as any).totalGuestPrice).toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={isSaving}
+            className="mt-3 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg border border-red-300"
+          >
+            Delete Event
+          </button>
+        </div>
+      )}
+
+      {!isSyncedVRBO && (
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Main Pricing Table Card */}
         <div className="xl:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200">
@@ -758,8 +798,15 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
               <i className="fa-solid fa-calendar-days text-emerald-600"></i>
               Night-by-Night Pricing
             </div>
-            <div className="text-sm text-slate-700 hidden md:block">Click any row to adjust</div>
-            <div className="text-sm text-slate-700 md:hidden">Tap any night to adjust</div>
+            {!isSyncedVRBO && (
+              <>
+                <div className="text-sm text-slate-700 hidden md:block">Click any row to adjust</div>
+                <div className="text-sm text-slate-700 md:hidden">Tap any night to adjust</div>
+              </>
+            )}
+            {isSyncedVRBO && (
+              <div className="text-sm text-blue-600">Read-only (synced from VRBO)</div>
+            )}
           </div>
 
           {/* Desktop / Tablet table view */}
@@ -983,109 +1030,113 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
             </div>
           )}
 
-          {/* Guest Price Summary - explicit separation of nightly vs stay adjustments */}
-          <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
-            <h3 className="font-semibold mb-4 text-slate-900">Guest Price Summary</h3>
+          {!isSyncedVRBO && (
+            <>
+              {/* Guest Price Summary - explicit separation of nightly vs stay adjustments */}
+              <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
+                <h3 className="font-semibold mb-4 text-slate-900">Guest Price Summary</h3>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-800">
-                <span>Base Rate</span>
-                <span className="font-semibold text-slate-900">${calculations.baseRateSum.toFixed(2)}</span>
-              </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-800">
+                    <span>Base Rate</span>
+                    <span className="font-semibold text-slate-900">${calculations.baseRateSum.toFixed(2)}</span>
+                  </div>
 
-              {/* Nightly adjustments sum (only from individual row edits) */}
-              <div className="flex justify-between text-slate-800">
-                <span>Nightly Adjustments</span>
-                <span className={`font-semibold ${calculations.nightlyAdjSum < 0 ? 'text-emerald-600' : calculations.nightlyAdjSum > 0 ? 'text-orange-600' : ''}`}>
-                  {calculations.nightlyAdjSum === 0 ? '$0.00' : (calculations.nightlyAdjSum > 0 ? '+' : '') + calculations.nightlyAdjSum.toFixed(2)}
-                </span>
-              </div>
+                  {/* Nightly adjustments sum (only from individual row edits) */}
+                  <div className="flex justify-between text-slate-800">
+                    <span>Nightly Adjustments</span>
+                    <span className={`font-semibold ${calculations.nightlyAdjSum < 0 ? 'text-emerald-600' : calculations.nightlyAdjSum > 0 ? 'text-orange-600' : ''}`}>
+                      {calculations.nightlyAdjSum === 0 ? '$0.00' : (calculations.nightlyAdjSum > 0 ? '+' : '') + calculations.nightlyAdjSum.toFixed(2)}
+                    </span>
+                  </div>
 
-              {/* Stay adjustments sum (weekly, loyalty, peak, custom stay, etc.) - completely separate */}
-              <div className="flex justify-between text-slate-800">
-                <span>Stay Adjustments</span>
-                <span className={`font-semibold ${calculations.stayAdjSum < 0 ? 'text-emerald-600' : calculations.stayAdjSum > 0 ? 'text-orange-600' : ''}`}>
-                  {calculations.stayAdjSum === 0 ? '$0.00' : (calculations.stayAdjSum > 0 ? '+' : '') + calculations.stayAdjSum.toFixed(2)}
-                </span>
-              </div>
+                  {/* Stay adjustments sum (weekly, loyalty, peak, custom stay, etc.) - completely separate */}
+                  <div className="flex justify-between text-slate-800">
+                    <span>Stay Adjustments</span>
+                    <span className={`font-semibold ${calculations.stayAdjSum < 0 ? 'text-emerald-600' : calculations.stayAdjSum > 0 ? 'text-orange-600' : ''}`}>
+                      {calculations.stayAdjSum === 0 ? '$0.00' : (calculations.stayAdjSum > 0 ? '+' : '') + calculations.stayAdjSum.toFixed(2)}
+                    </span>
+                  </div>
 
-              <div className="pt-3 mt-1 border-t flex justify-between text-slate-900">
-                <span className="font-semibold">Subtotal after Adjustments</span>
-                <span className="font-bold">${calculations.netAfterAdjustments.toFixed(2)}</span>
-              </div>
+                  <div className="pt-3 mt-1 border-t flex justify-between text-slate-900">
+                    <span className="font-semibold">Subtotal after Adjustments</span>
+                    <span className="font-bold">${calculations.netAfterAdjustments.toFixed(2)}</span>
+                  </div>
 
-              <div className="pt-2 border-t flex justify-between text-slate-800">
-                <span>
-                  Jamaica Beach Tax (9%)
-                  {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' — waived' : ''}
-                </span>
-                <span className="font-semibold text-slate-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-800">
-                <span>
-                  Texas State Tax (6%)
-                  {excludeStateTax && calculations.texasStateTax === 0 ? ' — waived' : ''}
-                </span>
-                <span className="font-semibold text-slate-900">${calculations.texasStateTax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-800">
-                <span>
-                  Cleaning Fee
-                  {customCleaningFee !== null ? ' (custom)' : ''}
-                </span>
-                <span className="font-semibold text-slate-900">${calculations.cleaning.toFixed(2)}</span>
-              </div>
+                  <div className="pt-2 border-t flex justify-between text-slate-800">
+                    <span>
+                      Jamaica Beach Tax (9%)
+                      {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' — waived' : ''}
+                    </span>
+                    <span className="font-semibold text-slate-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-800">
+                    <span>
+                      Texas State Tax (6%)
+                      {excludeStateTax && calculations.texasStateTax === 0 ? ' — waived' : ''}
+                    </span>
+                    <span className="font-semibold text-slate-900">${calculations.texasStateTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-800">
+                    <span>
+                      Cleaning Fee
+                      {customCleaningFee !== null ? ' (custom)' : ''}
+                    </span>
+                    <span className="font-semibold text-slate-900">${calculations.cleaning.toFixed(2)}</span>
+                  </div>
 
-              <div className="pt-4 border-t flex justify-between items-baseline">
-                <span className="font-bold text-lg text-slate-900">Total to Guest</span>
-                <span className="font-bold text-2xl text-emerald-600">${calculations.totalGuest.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Internal Split - full breakdown for owner/manager */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-6">
-            <h3 className="font-semibold text-amber-800 mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-handshake"></i> Internal Split (Not shown to guest)
-            </h3>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-amber-700">
-                  Tax Remit to TX
-                  {excludeStateTax && calculations.texasStateTax === 0 ? ' (waived)' : ''}
-                </span>
-                <span className="font-medium text-amber-900">${calculations.texasStateTax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-700">
-                  Tax Remit to Jamaica Beach
-                  {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' (waived)' : ''}
-                </span>
-                <span className="font-medium text-amber-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-700">
-                  Cleaning Fee
-                  {customCleaningFee !== null ? ' (custom)' : ''}
-                </span>
-                <span className="font-medium text-amber-900">${calculations.cleaning.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-700">Management Fee (22%)</span>
-                <span className="font-semibold text-amber-900">${calculations.managementFee.toFixed(2)}</span>
+                  <div className="pt-4 border-t flex justify-between items-baseline">
+                    <span className="font-bold text-lg text-slate-900">Total to Guest</span>
+                    <span className="font-bold text-2xl text-emerald-600">${calculations.totalGuest.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-3 mt-2 border-t border-amber-300 flex justify-between text-base">
-                <span className="font-bold text-amber-800">Owner Proceeds</span>
-                <span className="font-bold text-amber-900">${calculations.ownerProceeds.toFixed(2)}</span>
-              </div>
-            </div>
+              {/* Internal Split - full breakdown for owner/manager */}
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-6">
+                <h3 className="font-semibold text-amber-800 mb-4 flex items-center gap-2">
+                  <i className="fa-solid fa-handshake"></i> Internal Split (Not shown to guest)
+                </h3>
 
-            <div className="text-[11px] text-amber-600 mt-4">
-              These 5 items = Total to Guest. 22% Mgnt Fee is on "Subtotal after Adjustments".
-            </div>
-          </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">
+                      Tax Remit to TX
+                      {excludeStateTax && calculations.texasStateTax === 0 ? ' (waived)' : ''}
+                    </span>
+                    <span className="font-medium text-amber-900">${calculations.texasStateTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">
+                      Tax Remit to Jamaica Beach
+                      {excludeCityTax && calculations.jamaicaBeachTax === 0 ? ' (waived)' : ''}
+                    </span>
+                    <span className="font-medium text-amber-900">${calculations.jamaicaBeachTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">
+                      Cleaning Fee
+                      {customCleaningFee !== null ? ' (custom)' : ''}
+                    </span>
+                    <span className="font-medium text-amber-900">${calculations.cleaning.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">Management Fee (22%)</span>
+                    <span className="font-semibold text-amber-900">${calculations.managementFee.toFixed(2)}</span>
+                  </div>
+
+                  <div className="pt-3 mt-2 border-t border-amber-300 flex justify-between text-base">
+                    <span className="font-bold text-amber-800">Owner Proceeds</span>
+                    <span className="font-bold text-amber-900">${calculations.ownerProceeds.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-amber-600 mt-4">
+                  These 5 items = Total to Guest. 22% Mgnt Fee is on "Subtotal after Adjustments".
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Actions */}
           <div className="space-y-3">
@@ -1126,12 +1177,6 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                   Reject Request
                 </button>
               </>
-            )}
-
-            {isSyncedVRBO && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
-                This is a VRBO-synced booking (source=VRBO). It cannot be reviewed, priced, or confirmed through this interface.
-              </div>
             )}
 
             {/* Delete always available */}
@@ -1176,6 +1221,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
           )}
         </div>
       </div>
+      )}
 
       {/* Daily Adjustment Modal (per specific night) */}
       {showDailyModal && selectedNightIndex !== null && (

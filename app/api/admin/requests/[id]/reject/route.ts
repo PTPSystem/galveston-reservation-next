@@ -13,6 +13,12 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid request ID' }, { status: 400 });
   }
 
+  // Block reject for VRBO synced (price/review managed externally)
+  const booking = await prisma.bookingRequest.findUnique({ where: { id: requestId }, select: { source: true } });
+  if (booking?.source === 'VRBO') {
+    return NextResponse.json({ error: 'Cannot reject VRBO-synced bookings via this interface' }, { status: 403 });
+  }
+
   try {
     const updated = await prisma.bookingRequest.update({
       where: { id: requestId },

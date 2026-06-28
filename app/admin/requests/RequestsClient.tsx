@@ -324,9 +324,13 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
 
                 <Link
                   href={`/admin/requests/${req.id}`}
-                  className="mt-4 block w-full text-center py-3.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-xl text-base transition-colors"
+                  className={`mt-4 block w-full text-center py-3.5 font-semibold rounded-xl text-base transition-colors ${
+                    req.source === 'VRBO' 
+                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white' 
+                      : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white'
+                  }`}
                 >
-                  Review Request
+                  {req.source === 'VRBO' ? 'View Details' : 'Review Request'}
                 </Link>
               </div>
             );
@@ -383,7 +387,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                   >
                     Submitted {getSortIndicator('submitted')}
                   </th>
-                  <th className="sticky right-0 z-10 bg-slate-50 px-3 sm:px-4 py-3 w-20 text-right font-semibold">Review</th>
+                  <th className="sticky right-0 z-10 bg-slate-50 px-3 sm:px-4 py-3 w-20 text-right font-semibold">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -436,9 +440,13 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                       <td className="sticky right-0 z-10 bg-white group-hover:bg-slate-50 px-3 sm:px-4 py-4 text-right">
                         <Link
                           href={`/admin/requests/${req.id}`}
-                          className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold bg-white border border-slate-300 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 active:bg-emerald-100 transition-colors whitespace-nowrap shadow-sm"
+                          className={`inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap shadow-sm ${
+                            req.source === 'VRBO'
+                              ? 'bg-blue-50 border border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400'
+                              : 'bg-white border border-slate-300 hover:bg-emerald-50 hover:border-emerald-300 active:bg-emerald-100'
+                          }`}
                         >
-                          Review
+                          {req.source === 'VRBO' ? 'View' : 'Review'}
                         </Link>
                       </td>
                     </tr>

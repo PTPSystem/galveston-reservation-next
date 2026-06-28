@@ -11,6 +11,12 @@ export async function POST(
   const requestId = parseInt(id);
   const body = await request.json();
 
+  // Block approve/pricing for VRBO
+  const booking = await prisma.bookingRequest.findUnique({ where: { id: requestId }, select: { source: true } });
+  if (booking?.source === 'VRBO') {
+    return NextResponse.json({ error: 'Cannot approve or price VRBO-synced bookings here' }, { status: 403 });
+  }
+
   const updateData: any = {
     status: 'CONFIRMED',
     approvedAt: new Date(),

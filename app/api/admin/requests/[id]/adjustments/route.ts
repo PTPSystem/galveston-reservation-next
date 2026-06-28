@@ -9,6 +9,15 @@ export async function POST(
   const requestId = parseInt(id);
   const body = await request.json();
 
+  // Prevent price changes for VRBO synced bookings
+  const booking = await prisma.bookingRequest.findUnique({
+    where: { id: requestId },
+    select: { source: true },
+  });
+  if (booking?.source === 'VRBO') {
+    return NextResponse.json({ error: 'Cannot modify pricing for VRBO-synced bookings' }, { status: 403 });
+  }
+
   const adjustment = await prisma.pricingAdjustment.create({
     data: {
       bookingRequestId: requestId,
