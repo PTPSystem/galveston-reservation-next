@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmailRecipients, updateEmailRecipients } from '@/lib/email-settings';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function GET() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     const recipients = await getEmailRecipients();
     return NextResponse.json(recipients);
@@ -15,6 +21,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json();
 
@@ -27,7 +38,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(propertyManagerEmail) || !emailRegex.test(ownerEmail)) {
       return NextResponse.json(
@@ -44,7 +54,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to update email settings:', error);
-    // Return more helpful error in development
     const errorMessage = process.env.NODE_ENV === 'development' && error instanceof Error 
       ? `Database error: ${error.message}` 
       : 'Failed to save email settings. The email_settings table may not exist yet — run the migration SQL.';

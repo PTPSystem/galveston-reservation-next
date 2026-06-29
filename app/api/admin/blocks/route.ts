@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
-
-async function checkRole() {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    return false;
-  }
-  return true;
-}
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function GET() {
-  if (!(await checkRole())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const blocks = await prisma.blockedPeriod.findMany({
@@ -23,8 +15,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await checkRole())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const body = await request.json();
@@ -33,7 +26,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'startDate and endDate are required' }, { status: 400 });
   }
 
-  // Basic overlap check against confirmed bookings (optional but recommended)
   const start = new Date(body.startDate);
   const end = new Date(body.endDate);
 

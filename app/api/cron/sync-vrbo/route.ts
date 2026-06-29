@@ -3,23 +3,25 @@ import { syncVrboCalendar } from '@/lib/vrbo-sync';
 
 export const dynamic = 'force-dynamic';
 
-// Vercel Cron Job endpoint
-// This should only be called by Vercel's cron system
+// Vercel Cron Job endpoint — only callable with CRON_SECRET Bearer token
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
 
-  // Verify the cron secret (Vercel sends it as Bearer token)
-  if (process.env.CRON_SECRET) {
-    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
-    if (authHeader !== expectedAuth) {
-      console.warn('[Cron] Unauthorized attempt to run VRBO sync');
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-  } else {
-    console.warn('[Cron] CRON_SECRET not set - allowing sync (not recommended for production)');
+  if (!process.env.CRON_SECRET) {
+    console.error('[Cron] CRON_SECRET is not set — refusing sync');
+    return NextResponse.json(
+      { success: false, error: 'Cron endpoint is not configured' },
+      { status: 503 }
+    );
+  }
+
+  const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+  if (authHeader !== expectedAuth) {
+    console.warn('[Cron] Unauthorized attempt to run VRBO sync');
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    );
   }
 
   try {

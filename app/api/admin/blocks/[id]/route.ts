@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
-
-async function checkRole() {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    return false;
-  }
-  return true;
-}
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkRole())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const { id } = await params;
@@ -30,7 +22,6 @@ export async function PATCH(
   const start = new Date(body.startDate);
   const end = new Date(body.endDate);
 
-  // Check overlap with confirmed bookings (excluding perhaps itself but since blocked not booking ok)
   const overlappingBooking = await prisma.bookingRequest.findFirst({
     where: {
       status: 'CONFIRMED',
@@ -61,8 +52,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkRole())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const { id } = await params;

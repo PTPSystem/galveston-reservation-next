@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
-// Lightweight status endpoint for last VRBO iCal sync (used by admin UI)
-// No role check inside (consistent with rates/emails/holidays/sync-vrbo APIs);
-// protection comes from being called only from within authenticated /admin pages.
 export async function GET() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     const latest = await prisma.syncLog.findFirst({
       where: { syncType: 'vrbo_ical_import' },

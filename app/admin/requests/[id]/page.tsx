@@ -1,11 +1,26 @@
 import prisma from '@/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import QuoteClient from './QuoteClient';
+import { auth } from '@/lib/auth';
+import { ADMIN_ROLES, needsEmailReconfirmation } from '@/lib/admin-auth';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 export default async function AdminQuotePage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  const role = (session?.user as { role?: string })?.role;
+  if (!role || !ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number])) {
+    redirect('/login');
+  }
+
+  const lastVerification = (session?.user as { lastEmailVerification?: Date | string | null })
+    ?.lastEmailVerification;
+  if (needsEmailReconfirmation(lastVerification ? new Date(lastVerification) : null)) {
+    const email = session?.user?.email ?? '';
+    redirect(`/verify?email=${encodeURIComponent(email)}`);
+  }
+
   const { id } = await params;
   const requestId = parseInt(id);
 

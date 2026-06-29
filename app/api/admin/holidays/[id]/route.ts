@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   const { id: idParam } = await params;
   const id = parseInt(idParam);
   const body = await request.json();
@@ -27,6 +33,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   const { id: idParam } = await params;
   const id = parseInt(idParam);
 

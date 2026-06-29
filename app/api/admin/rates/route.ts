@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function GET() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     let setting = await prisma.rateSetting.findFirst();
 
@@ -26,6 +32,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     const body = await request.json();
 

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { parse as parseDate } from 'date-fns';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const formData = await request.formData();

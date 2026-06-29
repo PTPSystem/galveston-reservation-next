@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getEmailConfigStatus } from '@/lib/email';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function GET() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   const status = getEmailConfigStatus();
 
   return NextResponse.json({

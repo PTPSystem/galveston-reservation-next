@@ -1,43 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { requireOwnerSession, type AdminRole } from '@/lib/admin-auth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireOwnerSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: (session.user as any).id },
-  });
-
-  if (!currentUser) {
-    return NextResponse.json({ error: 'User not found' }, { status: 401 });
-  }
-
-  const userRole = currentUser.role as 'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER';
-
-  if (userRole !== 'ADMIN' && userRole !== 'OWNER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
+  const currentUser = authResult.user;
   const { id } = await params;
-  const { role }: { role: 'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER' } = await request.json();
+  const { role }: { role: AdminRole } = await request.json();
 
   if (!role) {
     return NextResponse.json({ error: 'Role is required' }, { status: 400 });
   }
 
-  // Role restrictions
-  if (userRole === 'OWNER' && role === 'ADMIN') {
+  if (currentUser.role === 'OWNER' && role === 'ADMIN') {
     return NextResponse.json({ error: 'Owners cannot assign Admin role' }, { status: 403 });
   }
 
-  // Prevent removing last admin? Optional, but good to have
   if (role !== 'ADMIN') {
     const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
     const targetUser = await prisma.user.findUnique({ where: { id } });

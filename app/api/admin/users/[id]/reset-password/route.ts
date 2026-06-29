@@ -1,32 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { requireOwnerSession } from '@/lib/admin-auth';
 
 export async function POST(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireOwnerSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: (session.user as any).id },
-  });
-
-  if (!currentUser) {
-    return NextResponse.json({ error: 'User not found' }, { status: 401 });
-  }
-
-  const userRole = currentUser.role as 'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER';
-
-  if (userRole !== 'ADMIN' && userRole !== 'OWNER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
+  const currentUser = authResult.user;
   const { id } = await params;
 
   const targetUser = await prisma.user.findUnique({
@@ -37,18 +24,14 @@ export async function POST(
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  // Check role restrictions for reset (same as invite)
-  // For now allow as long as current user has access
-
-  // Delete any existing pending invites for this email (to avoid duplicates)
   await prisma.invite.deleteMany({
     where: { email: targetUser.email, usedAt: null },
   });
 
   const token = randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
 
-  const invite = await prisma.invite.create({
+  await prisma.invite.create({
     data: {
       email: targetUser.email,
       role: targetUser.role,
@@ -56,7 +39,6 @@ export async function POST(
       invitedBy: currentUser.id,
       expiresAt,
     },
-    include: { inviter: true },
   });
 
   const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;

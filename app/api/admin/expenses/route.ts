@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function GET() {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const expenses = await prisma.ownerExpense.findMany({
@@ -16,10 +15,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  const role = (session?.user as any)?.role;
-  if (!role || !['ADMIN', 'OWNER', 'PROPERTY_MANAGER'].includes(role)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
   const formData = await request.formData();
@@ -35,7 +33,6 @@ export async function POST(request: NextRequest) {
 
   let attachment: string | null = null;
   if (file && file.size > 0) {
-    // Store as data URL for simplicity (small receipt images are fine)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     attachment = `data:${file.type};base64,${buffer.toString('base64')}`;

@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendQuoteEmail, sendInternalBookingConfirmedEmail } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   const { id } = await params;
   const requestId = parseInt(id);
   const body = await request.json();

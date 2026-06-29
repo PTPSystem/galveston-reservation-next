@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
-    // Dynamic import to avoid build-time issues with node-ical
     const { syncVrboCalendar } = await import('@/lib/vrbo-sync');
     const result = await syncVrboCalendar();
 

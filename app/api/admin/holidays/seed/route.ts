@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { defaultHolidayPeriods } from '@/lib/constants/holidays';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function POST() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     await prisma.holidayPeriod.deleteMany();
 

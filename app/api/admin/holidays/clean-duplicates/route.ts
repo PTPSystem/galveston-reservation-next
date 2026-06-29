@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminSession } from '@/lib/admin-auth';
 
 export async function POST() {
+  const authResult = await requireAdminSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   try {
     const all = await prisma.holidayPeriod.findMany({
       orderBy: { createdAt: 'asc' },
@@ -41,7 +47,6 @@ export async function POST() {
   } catch (error: any) {
     console.error("Failed to clean duplicates:", error);
     
-    // Helpful message for connection issues
     if (error.code === 'ECONNREFUSED' || error.message?.includes('connect')) {
       return NextResponse.json({ 
         success: false, 

@@ -1,24 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireOwnerSession } from '@/lib/admin-auth';
 
-// DELETE: Delete a pending invite
 export async function DELETE(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireOwnerSession();
+  if (!authResult.ok) {
+    return authResult.response;
+  }
+
   const { id } = await params;
-
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const userRole = (session.user as any).role as 'ADMIN' | 'OWNER' | 'PROPERTY_MANAGER';
-
-  if (userRole !== 'ADMIN' && userRole !== 'OWNER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const invite = await prisma.invite.findUnique({
     where: { id },

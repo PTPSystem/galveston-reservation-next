@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email') || '';
+  const { update } = useSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +28,10 @@ function VerifyContent() {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        await update({
+          lastEmailVerification: data.lastEmailVerification ?? new Date().toISOString(),
+        });
         router.push('/admin/requests');
         router.refresh();
       } else {
