@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { bookingRequestSchema, validateBookingDates } from '@/lib/validations/booking';
+import {
+  availabilityConflictMessage,
+  findAvailabilityConflict,
+} from '@/lib/availability';
 import { randomBytes } from 'crypto';
 import { sendBookingConfirmationEmail, sendInternalNewRequestNotification } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
@@ -35,6 +39,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Invalid dates', details: dateErrors },
         { status: 400 }
+      );
+    }
+
+    const conflict = await findAvailabilityConflict(data.startDate, data.endDate);
+    if (conflict) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: availabilityConflictMessage(conflict),
+        },
+        { status: 409 }
       );
     }
 

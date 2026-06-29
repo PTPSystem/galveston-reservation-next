@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminSession } from '@/lib/admin-auth';
+import { overlappingDateRangeWhere } from '@/lib/availability';
 
 export async function GET() {
   const authResult = await requireAdminSession();
@@ -32,8 +33,7 @@ export async function POST(request: NextRequest) {
   const overlappingBooking = await prisma.bookingRequest.findFirst({
     where: {
       status: 'CONFIRMED',
-      startDate: { lt: end },
-      endDate: { gt: start },
+      ...overlappingDateRangeWhere(start, end),
     },
   });
 
