@@ -3,6 +3,10 @@ import prisma from '@/lib/prisma';
 import { sendQuoteEmail, sendInternalBookingConfirmedEmail } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
 import { requireAdminSession } from '@/lib/admin-auth';
+import {
+  availabilityConflictMessage,
+  findAvailabilityConflict,
+} from '@/lib/availability';
 
 export async function POST(
   request: NextRequest,
@@ -17,10 +21,28 @@ export async function POST(
   const requestId = parseInt(id);
   const body = await request.json();
 
-  // Block approve/pricing for VRBO
-  const booking = await prisma.bookingRequest.findUnique({ where: { id: requestId }, select: { source: true } });
-  if (booking?.source === 'VRBO') {
+  const booking = await prisma.bookingRequest.findUnique({
+    where: { id: requestId },
+    select: { source: true, startDate: true, endDate: true },
+  });
+  if (!booking) {
+    return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+  }
+  if (booking.source === 'VRBO') {
     return NextResponse.json({ error: 'Cannot approve or price VRBO-synced bookings here' }, { status: 403 });
+  }
+
+  const nextStart = body.startDate ? new Date(body.startDate) : booking.startDate;
+  const nextEnd = body.endDate ? new Date(body.endDate) : booking.endDate;
+
+  const conflict = await findAvailabilityConflict(nextStart, nextEnd, {
+    excludeBookingId: requestId,
+  });
+  if (conflict) {
+    return NextResponse.json(
+      { error: availabilityConflictMessage(conflict) },
+      { status: 409 }
+    );
   }
 
   const updateData: any = {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminSession } from '@/lib/admin-auth';
-import { overlappingDateRangeWhere } from '@/lib/availability';
+import { overlappingDateRangeWhere } from '@/lib/date-range';
 
 export async function PATCH(
   request: NextRequest,

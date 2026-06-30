@@ -1,13 +1,18 @@
 import prisma from '@/lib/prisma';
+import { overlappingDateRangeWhere } from '@/lib/date-range';
 
 export type AvailabilityConflict = 'booking' | 'blocked';
 
-/** Prisma filter for date ranges that overlap [startDate, endDate). */
-export function overlappingDateRangeWhere(startDate: Date, endDate: Date) {
-  return {
-    startDate: { lt: endDate },
-    endDate: { gt: startDate },
-  };
+export { dateRangesOverlap, overlappingDateRangeWhere } from '@/lib/date-range';
+
+export function availabilityConflictMessage(
+  conflict: AvailabilityConflict
+): string {
+  if (conflict === 'booking') {
+    return 'Those dates are not available. Please choose different dates.';
+  }
+
+  return 'Those dates are blocked and unavailable. Please choose different dates.';
 }
 
 /**
@@ -16,13 +21,19 @@ export function overlappingDateRangeWhere(startDate: Date, endDate: Date) {
  */
 export async function findAvailabilityConflict(
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  options?: { excludeBookingId?: number }
 ): Promise<AvailabilityConflict | null> {
   const overlap = overlappingDateRangeWhere(startDate, endDate);
+  const excludeId = options?.excludeBookingId;
 
   const [overlappingBooking, overlappingBlock] = await Promise.all([
     prisma.bookingRequest.findFirst({
-      where: { status: 'CONFIRMED', ...overlap },
+      where: {
+        status: 'CONFIRMED',
+        ...overlap,
+        ...(excludeId != null ? { id: { not: excludeId } } : {}),
+      },
       select: { id: true },
     }),
     prisma.blockedPeriod.findFirst({
@@ -40,14 +51,4 @@ export async function findAvailabilityConflict(
   }
 
   return null;
-}
-
-export function availabilityConflictMessage(
-  conflict: AvailabilityConflict
-): string {
-  if (conflict === 'booking') {
-    return 'Those dates are not available. Please choose different dates.';
-  }
-
-  return 'Those dates are blocked and unavailable. Please choose different dates.';
 }

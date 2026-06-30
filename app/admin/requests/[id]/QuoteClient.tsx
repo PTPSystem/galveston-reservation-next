@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { dateRangesOverlap } from '@/lib/date-range';
 
 interface BookingRequest {
   id: number;
@@ -260,9 +261,9 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   // Helpers for date extension
   const isRangeAvailable = (start: string, end: string): boolean => {
     if (!start || !end) return false;
-    return !unavailableForCheck.some((p: any) => {
-      return !(end <= p.startDate || start >= p.endDate);
-    });
+    return !unavailableForCheck.some((p: { startDate: string; endDate: string }) =>
+      dateRangesOverlap(start, end, p.startDate, p.endDate)
+    );
   };
 
   const extendBefore = (days: number) => {
