@@ -164,7 +164,8 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       <div className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-2">Import VRBO Payout CSV</h3>
         <p className="text-sm text-slate-600 mb-3">
-          Upload the monthly owner statement CSV exported from VRBO. Matching to existing VRBO bookings is done **purely by dates** (start + end only, with tolerant fallback). No names or Reservation IDs are used for matching. After a date match, placeholder names like "Reserved - ..." may be upgraded using the CSV name. When upload fails to match, expand the Debug section below to see the exact parsed date parts from your CSV vs the ones in the DB.
+          Upload the monthly owner statement / Payment Data CSV exported from VRBO. Matching to existing VRBO bookings is done purely by dates (start + end). Amounts are taken from the best row per Reservation ID (prefers Payment Type = Rent) so loyalty/UNKNOWN lines do not wipe out real payouts. Currency values like{' '}
+          <span className="font-mono">$4,328.99</span> are supported. When upload fails to match, expand Debug below.
         </p>
         <div
           onClick={triggerFileSelect}
