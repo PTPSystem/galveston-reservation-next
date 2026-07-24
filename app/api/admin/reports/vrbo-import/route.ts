@@ -5,10 +5,11 @@ import { requireAdminSession } from '@/lib/admin-auth';
 /**
  * VRBO owner statement CSV import.
  *
- * Newer VRBO exports use columns like Guest Name, Your Revenue, Payable To You,
- * Number of Nights, Stay Tax *, and may include multiple rows per Reservation ID
- * (Rent, Refund, loyalty/UNKNOWN). Older exports used Gross booking amount /
- * Deductions / Traveler First/Last Name.
+ * Supports:
+ * 1) Payout Summary Report (preferred): Gross booking amount / Deductions / Payout,
+ *    Traveler First/Last Name, Check-in like "July 10, 2026"
+ * 2) Payment Data Property export: Your Revenue / Payable To You / Guest Name,
+ *    multiple rows per Reservation ID (Rent, Refund, loyalty/UNKNOWN)
  */
 export async function POST(request: NextRequest) {
   const authResult = await requireAdminSession();
@@ -33,27 +34,29 @@ export async function POST(request: NextRequest) {
   const skipped: string[] = [];
   const debugRows: any[] = [];
 
-  for (const { row, resId, skippedReason } of rows) {
+  for (const { row, resId, skippedReason, score } of rows) {
     if (skippedReason) {
-      skipped.push(`${resId}: ${skippedReason}`);
+      skipped.push(`${resId}: ${skippedReason} (score=${score})`);
       continue;
     }
 
-    const checkIn = parseVrboDate(row['Check-in'] || row['Check In'] || row['check-in']);
-    const checkOut = parseVrboDate(row['Check-out'] || row['Check Out'] || row['check-out']);
+    const checkIn = parseVrboDate(
+      getField(row, 'Check-in', 'Check In', 'check-in')
+    );
+    const checkOut = parseVrboDate(
+      getField(row, 'Check-out', 'Check Out', 'check-out')
+    );
     const payoutDateStr =
-      row['Payout date'] ||
-      row['Payout Date'] ||
-      row['Disbursement Date'] ||
-      row['Payment Date'];
+      getField(row, 'Payout date', 'Payout Date', 'Disbursement Date', 'Payment Date');
     const payoutDate = payoutDateStr ? parseVrboDate(payoutDateStr) : null;
 
     const amounts = extractFinancials(row);
-    const currency = row['Payout currency'] || row['Currency'] || 'USD';
+    const currency = getField(row, 'Payout currency', 'Currency') || 'USD';
     const nights =
-      parseInt(row['Nights'] || row['Number of Nights'] || '0', 10) || 0;
+      parseInt(getField(row, 'Nights', 'Number of Nights') || '0', 10) || 0;
 
     const { firstName, lastName } = extractGuestNames(row);
+    const csvGuestFull = [firstName, lastName].filter(Boolean).join(' ').trim();
 
     // Match to existing VRBO booking **purely by dates** (start + end).
     let matchedBooking: any = null;
@@ -154,23 +157,38 @@ export async function POST(request: NextRequest) {
               : `start-date-only (multiple, took first)`;
         }
       }
+
+      // Name fallback for iCal placeholders like "Reserved - Bette"
+      if (!matchedBooking && csvGuestFull && allVrbo) {
+        const guestToken = csvGuestFull.split(/\s+/)[0].toLowerCase();
+        const nameMatches = allVrbo.filter((b: any) => {
+          const g = (b.guestName || '').toLowerCase();
+          return g.includes(guestToken) || guestToken.length > 2 && g.includes(guestToken);
+        });
+        if (nameMatches.length === 1) {
+          matchedBooking = nameMatches[0];
+          matchMethod = 'guest-name-fallback';
+        }
+      }
     }
 
     const thisDebug: any = {
       resId,
-      paymentType: row['Payment Type'] || row['PaymentType'] || '',
-      guestName: row['Guest Name'] || [firstName, lastName].filter(Boolean).join(' '),
-      rawCheckIn: row['Check-in'] || row['Check In'] || row['check-in'],
-      rawCheckOut: row['Check-out'] || row['Check Out'] || row['check-out'],
+      paymentType: getField(row, 'Payment Type', 'PaymentType'),
+      guestName: getField(row, 'Guest Name') || csvGuestFull,
+      rawCheckIn: getField(row, 'Check-in', 'Check In', 'check-in'),
+      rawCheckOut: getField(row, 'Check-out', 'Check Out', 'check-out'),
       parsedCheckIn: checkIn && !isInvalidDate(checkIn) ? checkIn.toISOString() : null,
       parsedCheckOut: checkOut && !isInvalidDate(checkOut) ? checkOut.toISOString() : null,
       amounts,
+      score,
       csvStartKey,
       csvEndKey,
       csvStartParts,
       csvEndParts,
       matchMethod: matchMethod || 'none',
       matchedId: matchedBooking?.id || null,
+      matchedGuest: matchedBooking?.guestName || null,
       dateMatchesCount: typeof dateMatches !== 'undefined' ? dateMatches.length : 0,
     };
     if (typeof dateMatches !== 'undefined') {
@@ -215,23 +233,34 @@ export async function POST(request: NextRequest) {
       if (full) matchedBooking = full as any;
     }
 
+    const existingPayout = await prisma.vrboPayout.findUnique({
+      where: { reservationId: resId },
+      select: { payout: true, grossBookingAmount: true },
+    });
+
+    const safeGross =
+      amounts.gross !== 0 ? amounts.gross : existingPayout?.grossBookingAmount || 0;
+    const safePayout =
+      amounts.payout !== 0 ? amounts.payout : existingPayout?.payout || 0;
+
     await prisma.vrboPayout.upsert({
       where: { reservationId: resId },
       create: {
         reservationId: resId,
-        propertyId: row['Property ID'] || row['PropertyID'],
-        unitId: row['Unit ID'] || row['UnitID'],
-        address: row['Address'],
+        propertyId: getField(row, 'Property ID', 'PropertyID') || null,
+        unitId: getField(row, 'Unit ID', 'UnitID') || null,
+        address: getField(row, 'Address') || null,
         travelerFirstName: firstName || null,
         travelerLastName: lastName || null,
-        bookingStatus: row['Booking status'] || row['Booking Status'] || row['Payment Type'],
+        bookingStatus:
+          getField(row, 'Booking status', 'Booking Status', 'Payment Type') || null,
         checkIn: checkIn && !isInvalidDate(checkIn) ? checkIn : new Date(0),
         checkOut: checkOut && !isInvalidDate(checkOut) ? checkOut : new Date(0),
         nights,
         payoutDate,
-        grossBookingAmount: amounts.gross,
+        grossBookingAmount: safeGross,
         deductions: amounts.deductions,
-        payout: amounts.payout,
+        payout: safePayout,
         lodgingTaxOwnerRemits: amounts.lodgingTax,
         taxWithheld: amounts.taxWithheld,
         payoutCurrency: currency,
@@ -239,15 +268,16 @@ export async function POST(request: NextRequest) {
         bookingRequestId,
       },
       update: {
-        grossBookingAmount: amounts.gross,
+        grossBookingAmount: safeGross,
         deductions: amounts.deductions,
-        payout: amounts.payout,
+        payout: safePayout,
         payoutDate,
         lodgingTaxOwnerRemits: amounts.lodgingTax,
         taxWithheld: amounts.taxWithheld,
         travelerFirstName: firstName || undefined,
         travelerLastName: lastName || undefined,
-        bookingStatus: row['Booking status'] || row['Booking Status'] || row['Payment Type'],
+        bookingStatus:
+          getField(row, 'Booking status', 'Booking Status', 'Payment Type') || undefined,
         raw: row,
         bookingRequestId,
         checkIn: checkIn && !isInvalidDate(checkIn) ? checkIn : undefined,
@@ -264,36 +294,40 @@ export async function POST(request: NextRequest) {
       const currentGuest = (matchedBooking.guestName || '').trim();
       const isPlaceholder =
         /^reserved\b|^blocked\b/i.test(currentGuest) || currentGuest.length < 3;
-      const realName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const realName = csvGuestFull;
       const shouldUpdateName =
         isPlaceholder &&
         realName &&
         realName.length > 3 &&
         currentGuest.toLowerCase() !== realName.toLowerCase();
 
-      const updateData: any = {};
-      if (shouldUpdateName) {
-        updateData.guestName = realName;
+      // Only write pricing when we have a real payout; do not re-zero matched stays
+      if (safePayout !== 0 || shouldUpdateName) {
+        const updateData: any = {};
+        if (shouldUpdateName) {
+          updateData.guestName = realName;
+        }
+        if (safePayout !== 0) {
+          const current = (matchedBooking.pricing as any) || {};
+          updateData.pricing = {
+            ...current,
+            totalGuestPrice: safePayout,
+            managementFee: safePayout * 0.22,
+            ownerProceeds: safePayout * 0.78,
+            vrboGrossBooking: safeGross,
+            vrboDeductions: amounts.deductions,
+            vrboPayout: safePayout,
+            vrboPayoutDate: payoutDate ? payoutDate.toISOString().split('T')[0] : null,
+            vrboLodgingTaxOwnerRemits: amounts.lodgingTax,
+            vrboTaxWithheld: amounts.taxWithheld,
+          };
+        }
+
+        await prisma.bookingRequest.update({
+          where: { id: matchedBooking.id },
+          data: updateData,
+        });
       }
-
-      const current = (matchedBooking.pricing as any) || {};
-      updateData.pricing = {
-        ...current,
-        totalGuestPrice: amounts.payout,
-        managementFee: amounts.payout * 0.22,
-        ownerProceeds: amounts.payout * 0.78,
-        vrboGrossBooking: amounts.gross,
-        vrboDeductions: amounts.deductions,
-        vrboPayout: amounts.payout,
-        vrboPayoutDate: payoutDate ? payoutDate.toISOString().split('T')[0] : null,
-        vrboLodgingTaxOwnerRemits: amounts.lodgingTax,
-        vrboTaxWithheld: amounts.taxWithheld,
-      };
-
-      await prisma.bookingRequest.update({
-        where: { id: matchedBooking.id },
-        data: updateData,
-      });
     } else {
       unmatched.push(resId);
     }
@@ -318,40 +352,55 @@ export async function POST(request: NextRequest) {
 /** Parse currency like "$4,328.99", "($1,678.83)", "UNKNOWN", "0.00" */
 export function parseMoney(value: string | undefined | null): number {
   if (value == null) return 0;
-  const s = String(value).trim();
+  let s = String(value).trim();
   if (!s || /^unknown$/i.test(s) || s === '-' || s === '—' || s === '–') return 0;
 
   const wrappedNegative = /^\(.*\)$/.test(s);
-  const cleaned = s.replace(/[,$%\s]/g, '').replace(/^\(/, '').replace(/\)$/, '').replace(/^\$/, '');
-  if (!cleaned || cleaned === '-') return 0;
+  const leadingNegative = s.startsWith('-');
+  // Keep digits and dot only (handles $, commas, spaces, unicode currency)
+  s = s.replace(/[^0-9.]/g, '');
+  if (!s) return 0;
 
-  const n = parseFloat(cleaned);
+  const n = parseFloat(s);
   if (isNaN(n)) return 0;
-  if (wrappedNegative) return -Math.abs(n);
+  if (wrappedNegative || leadingNegative) return -Math.abs(n);
   return n;
 }
 
+function firstNonZero(...vals: number[]): number {
+  for (const v of vals) {
+    if (typeof v === 'number' && !isNaN(v) && v !== 0) return v;
+  }
+  return 0;
+}
+
 function extractFinancials(row: Record<string, string>) {
-  // New Payment Data export
-  const yourRevenue = parseMoney(row['Your Revenue']);
-  const payableToYou = parseMoney(row['Payable To You']);
-  const payoutCol = parseMoney(row['Payout']);
-  const guestPayment = parseMoney(row['Guest Payment']);
-  const commission = Math.abs(parseMoney(row['Commission']));
-  const serviceFee = Math.abs(parseMoney(row['Service Fee']));
-  const processingFee = Math.abs(parseMoney(row['Payment Processing Fee']));
+  const yourRevenue = parseMoney(getField(row, 'Your Revenue'));
+  const payableToYou = parseMoney(getField(row, 'Payable To You'));
+  const payoutCol = parseMoney(getField(row, 'Payout'));
+  const guestPayment = parseMoney(getField(row, 'Guest Payment'));
+  const commission = Math.abs(parseMoney(getField(row, 'Commission')));
+  const serviceFee = Math.abs(parseMoney(getField(row, 'Service Fee')));
+  const processingFee = Math.abs(parseMoney(getField(row, 'Payment Processing Fee')));
 
-  // Legacy owner statement columns
-  const legacyGross = parseMoney(row['Gross booking amount'] || row['Gross booking']);
-  const legacyDeductions = parseMoney(row['Deductions']);
-  const legacyPayout = parseMoney(row['Payout']);
+  const legacyGross = parseMoney(
+    getField(row, 'Gross booking amount') || getField(row, 'Gross booking')
+  );
+  const legacyDeductions = parseMoney(getField(row, 'Deductions'));
+  const legacyPayout = parseMoney(getField(row, 'Payout'));
 
-  const gross = yourRevenue || legacyGross || guestPayment || 0;
-  const payout =
-    (payableToYou !== 0 ? payableToYou : 0) ||
-    (payoutCol !== 0 ? payoutCol : 0) ||
-    legacyPayout ||
-    0;
+  const gross = firstNonZero(yourRevenue, legacyGross, guestPayment);
+
+  // Prefer Payable To You / Payout; if those are UNKNOWN/0, fall back to Your Revenue
+  // so loyalty lines still carry a usable amount when no Rent row exists.
+  const payout = firstNonZero(
+    payableToYou,
+    payoutCol,
+    legacyPayout,
+    yourRevenue > 0 ? yourRevenue : 0,
+    legacyGross > 0 ? legacyGross : 0
+  );
+
   const deductions =
     legacyDeductions ||
     (commission || serviceFee || processingFee
@@ -359,24 +408,39 @@ function extractFinancials(row: Record<string, string>) {
       : Math.max(0, Math.abs(gross) - Math.abs(payout)));
 
   const lodgingTax = parseMoney(
-    row['Stay Tax You Remit'] ||
-      row['Lodging Tax Owner Remits'] ||
-      row['Lodging Tax'] ||
+    getField(row, 'Stay Tax You Remit') ||
+      getField(row, 'Lodging Tax Owner Remits') ||
+      getField(row, 'Lodging Tax') ||
       '0'
   );
   const taxWithheld = Math.abs(
-    parseMoney(row['Stay Tax We Remit'] || row['Tax Withheld'] || '0')
+    parseMoney(getField(row, 'Stay Tax We Remit') || getField(row, 'Tax Withheld') || '0')
   );
 
   return { gross, deductions, payout, lodgingTax, taxWithheld };
 }
 
+/** Case/BOM-insensitive field getter for VRBO CSV headers */
+function getField(row: Record<string, string>, ...names: string[]): string {
+  for (const name of names) {
+    if (row[name] != null && row[name] !== '') return row[name];
+  }
+  const entries = Object.entries(row);
+  for (const name of names) {
+    const target = name.replace(/^\uFEFF/, '').trim().toLowerCase();
+    for (const [k, v] of entries) {
+      if (k.replace(/^\uFEFF/, '').trim().toLowerCase() === target) return v || '';
+    }
+  }
+  return '';
+}
+
 function extractGuestNames(row: Record<string, string>): { firstName: string; lastName: string } {
-  const first = (row['Traveler First Name'] || '').trim();
-  const last = (row['Traveler Last Name'] || '').trim();
+  const first = getField(row, 'Traveler First Name').trim();
+  const last = getField(row, 'Traveler Last Name').trim();
   if (first || last) return { firstName: first, lastName: last };
 
-  const full = (row['Guest Name'] || '').trim();
+  const full = getField(row, 'Guest Name').trim();
   if (!full) return { firstName: '', lastName: '' };
   const parts = full.split(/\s+/);
   if (parts.length === 1) return { firstName: parts[0], lastName: '' };
@@ -385,29 +449,28 @@ function extractGuestNames(row: Record<string, string>): { firstName: string; la
 
 /**
  * Newer CSVs have multiple rows per reservation (Rent, Refund, loyalty/UNKNOWN).
- * Keep the most financially meaningful row so UNKNOWN loyalty lines do not
+ * Keep the most financially meaningful row so loyalty/UNKNOWN lines do not
  * overwrite Rent amounts with zeros.
  */
 function selectBestRowsPerReservation(
   rawRows: Record<string, string>[]
-): Array<{ row: Record<string, string>; resId: string; skippedReason?: string }> {
+): Array<{ row: Record<string, string>; resId: string; skippedReason?: string; score?: number }> {
   const byRes = new Map<string, Record<string, string>[]>();
 
   for (const row of rawRows) {
-    const resId = (
-      row['Reservation ID'] ||
-      row['ReservationID'] ||
-      row['reservation id'] ||
-      ''
-    ).trim();
+    const resId = getField(row, 'Reservation ID', 'ReservationID', 'reservation id').trim();
     if (!resId) continue;
     const list = byRes.get(resId) || [];
     list.push(row);
     byRes.set(resId, list);
   }
 
-  const selected: Array<{ row: Record<string, string>; resId: string; skippedReason?: string }> =
-    [];
+  const selected: Array<{
+    row: Record<string, string>;
+    resId: string;
+    skippedReason?: string;
+    score?: number;
+  }> = [];
 
   for (const [resId, group] of byRes) {
     let best: Record<string, string> | null = null;
@@ -421,35 +484,53 @@ function selectBestRowsPerReservation(
       }
     }
 
+    // Only skip when every row for this reservation has literally no money fields.
+    // Never drop Rent/Refund rows just because scoring is imperfect.
     if (!best || bestScore < 0) {
-      selected.push({
-        row: best || group[0],
-        resId,
-        skippedReason: 'no usable payout amounts (loyalty/UNKNOWN only)',
+      const hasTypedPayment = group.some((r) => {
+        const t = getField(r, 'Payment Type', 'PaymentType').trim().toLowerCase();
+        return t === 'rent' || t === 'refund';
       });
-      continue;
+      if (!hasTypedPayment) {
+        selected.push({
+          row: best || group[0],
+          resId,
+          skippedReason: 'no usable payout amounts (loyalty/UNKNOWN only)',
+          score: bestScore,
+        });
+        continue;
+      }
     }
 
-    selected.push({ row: best, resId });
+    selected.push({ row: best || group[0], resId, score: bestScore });
   }
 
   return selected;
 }
 
 function scoreFinancialRow(row: Record<string, string>): number {
-  const paymentType = (row['Payment Type'] || row['PaymentType'] || '').trim().toLowerCase();
+  const paymentType = getField(row, 'Payment Type', 'PaymentType').trim().toLowerCase();
   const amounts = extractFinancials(row);
-  const absPayout = Math.abs(amounts.payout);
-  const absGross = Math.abs(amounts.gross);
+  const payout = amounts.payout;
+  const gross = amounts.gross;
+  const absPayout = Math.abs(payout);
+  const absGross = Math.abs(gross);
 
   if (absPayout === 0 && absGross === 0) return -1;
 
-  let score = absPayout * 10 + absGross;
-  if (paymentType === 'rent') score += 1_000_000;
-  else if (paymentType === 'refund') score += 100_000;
-  else if (paymentType === 'batch payout') score += 10;
-  else if (!paymentType) score -= 50_000; // loyalty / empty type
-  return score;
+  // Prefer real Rent settlements with positive payout above everything else
+  if (paymentType === 'rent') {
+    return 2_000_000 + (payout > 0 ? payout * 10 : absPayout);
+  }
+  // Positive payable amounts (any type)
+  if (payout > 0) return 1_000_000 + payout * 10 + absGross;
+  // Loyalty / empty type with revenue but UNKNOWN payout — still usable after fallback
+  if (!paymentType && gross > 0) return 100_000 + gross;
+  // Refunds are real financial events but should not beat a positive Rent/payout
+  if (paymentType === 'refund') return 10_000 + absPayout;
+  if (paymentType === 'batch payout') return 10 + absPayout;
+
+  return absPayout + absGross;
 }
 
 function isInvalidDate(d: Date): boolean {
@@ -457,7 +538,9 @@ function isInvalidDate(d: Date): boolean {
 }
 
 function parseVrboCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/);
+  // Strip UTF-8 BOM if present
+  const cleanedText = text.replace(/^\uFEFF/, '');
+  const lines = cleanedText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
@@ -481,7 +564,7 @@ function parseVrboCsv(text: string): Record<string, string>[] {
     return result.map((v) => v.replace(/^"|"$/g, ''));
   }
 
-  const headers = parseCsvRow(lines[0]);
+  const headers = parseCsvRow(lines[0]).map((h) => h.replace(/^\uFEFF/, '').trim());
   const rows: Record<string, string>[] = [];
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();

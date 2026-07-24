@@ -164,8 +164,10 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       <div className="bg-white rounded-2xl border p-6">
         <h3 className="font-semibold text-slate-900 mb-2">Import VRBO Payout CSV</h3>
         <p className="text-sm text-slate-600 mb-3">
-          Upload the monthly owner statement / Payment Data CSV exported from VRBO. Matching to existing VRBO bookings is done purely by dates (start + end). Amounts are taken from the best row per Reservation ID (prefers Payment Type = Rent) so loyalty/UNKNOWN lines do not wipe out real payouts. Currency values like{' '}
-          <span className="font-mono">$4,328.99</span> are supported. When upload fails to match, expand Debug below.
+          Upload a VRBO <strong>Payout Summary Report</strong> CSV (recommended) or Payment Data export.
+          Summary columns: Gross booking amount / Deductions / Payout. Matching is by check-in + check-out dates
+          (e.g. Terence Jul 10–12, Bette Jul 15–22). Payment Data files with multiple Rent/loyalty rows are also supported.
+          After upload, expand Debug if anything looks off.
         </p>
         <div
           onClick={triggerFileSelect}
@@ -199,6 +201,12 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
         {importResult && (
           <div className={`mt-3 p-3 rounded-xl text-sm border ${importResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-700'}`}>
             <div>{importResult.message || importResult.error}</div>
+            {importResult.skipped?.length > 0 && (
+              <div className="mt-1.5 text-xs opacity-80">
+                Skipped:<br />
+                {importResult.skipped.slice(0, 8).join(', ')}{importResult.skipped.length > 8 ? ' ...' : ''}
+              </div>
+            )}
             {importResult.unmatched?.length > 0 && (
               <div className="mt-1.5 text-xs opacity-80">
                 Unmatched CSV rows (no matching VRBO booking by date):<br />
