@@ -10,6 +10,7 @@ interface RateSettings {
   holidayRate: number;
   weeklyDiscount: number;
   cleaningFee: number;
+  minNights: number;
 }
 
 export default function RateSettingsPage() {
@@ -22,6 +23,7 @@ export default function RateSettingsPage() {
     holidayRate: 700,
     weeklyDiscount: 350,
     cleaningFee: 300,
+    minNights: 2,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,6 +48,7 @@ export default function RateSettingsPage() {
             holidayRate: data.holidayRate,
             weeklyDiscount: data.weeklyDiscount,
             cleaningFee: data.cleaningFee ?? 300,
+            minNights: data.minNights ?? 2,
           });
         }
       } catch (error) {
@@ -78,6 +81,7 @@ export default function RateSettingsPage() {
           holidayRate: updated.holidayRate,
           weeklyDiscount: updated.weeklyDiscount,
           cleaningFee: updated.cleaningFee ?? 300,
+          minNights: updated.minNights ?? 2,
         });
         setMessage({ type: 'success', text: 'Rate settings saved successfully!' });
       } else {
@@ -109,7 +113,7 @@ export default function RateSettingsPage() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">Rates &amp; Pricing</h1>
           <p className="text-slate-600 mt-2">
-            Set your base nightly rates, weekly discount, and cleaning fee. These are used when calculating quotes.
+            Set your base nightly rates, weekly discount, cleaning fee, and minimum stay. These are used when calculating quotes and validating booking requests.
           </p>
         </div>
 
@@ -209,6 +213,23 @@ export default function RateSettingsPage() {
               </div>
               <p className="text-xs text-slate-500 mt-1">Flat fee added to every stay (in addition to nightly rate + taxes)</p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5">
+                Minimum Nights
+              </label>
+              <input
+                type="number"
+                value={rates.minNights}
+                onChange={(e) => setRates({ ...rates, minNights: parseInt(e.target.value) || 1 })}
+                className="w-full border rounded-lg px-4 py-2.5"
+                min="1"
+                step="1"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Guests must book at least this many nights (shown on the public site and enforced on requests)
+              </p>
+            </div>
           </div>
 
           <div className="pt-4 border-t">
@@ -222,7 +243,7 @@ export default function RateSettingsPage() {
           </div>
 
           <p className="text-xs text-slate-500 text-center">
-            These settings (nightly rates, weekly discount, cleaning fee) are used when calculating quotes. Holiday periods can override nightly rates.
+            These settings (nightly rates, weekly discount, cleaning fee, minimum nights) are used when calculating quotes and validating bookings. Holiday periods can override nightly rates.
           </p>
         </form>
       </div>

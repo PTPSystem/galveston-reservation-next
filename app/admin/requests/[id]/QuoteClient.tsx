@@ -34,6 +34,7 @@ interface RateSettings {
   holidayRate: number;
   weeklyDiscount: number;
   cleaningFee: number;
+  minNights?: number;
 }
 
 interface NightRow {

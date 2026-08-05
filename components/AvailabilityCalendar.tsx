@@ -12,10 +12,11 @@ interface UnavailablePeriod {
   reason?: string | null;
 }
 
-export default function AvailabilityCalendar() {
+export default function AvailabilityCalendar({ minNights = 2 }: { minNights?: number }) {
   const [unavailablePeriods, setUnavailablePeriods] = useState<UnavailablePeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>();
+  const [effectiveMinNights, setEffectiveMinNights] = useState(minNights);
 
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -24,6 +25,9 @@ export default function AvailabilityCalendar() {
         if (res.ok) {
           const data = await res.json();
           setUnavailablePeriods(data.unavailable || []);
+          if (typeof data.minNights === 'number' && data.minNights >= 1) {
+            setEffectiveMinNights(data.minNights);
+          }
         }
       } catch (error) {
         console.error('Failed to load availability', error);
@@ -40,6 +44,15 @@ export default function AvailabilityCalendar() {
     to: new Date(period.endDate),
   }));
 
+  const nightsSelected =
+    selectedRange?.from && selectedRange?.to
+      ? Math.ceil(
+          (selectedRange.to.getTime() - selectedRange.from.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      : 0;
+
+  const tooShort = nightsSelected > 0 && nightsSelected < effectiveMinNights;
+
   const hasConflict = selectedRange?.from && selectedRange?.to
     ? unavailablePeriods.some(period => {
         const periodStart = new Date(period.startDate);
@@ -51,7 +64,7 @@ export default function AvailabilityCalendar() {
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  const bookingLink = selectedRange?.from && selectedRange?.to && !hasConflict
+  const bookingLink = selectedRange?.from && selectedRange?.to && !hasConflict && !tooShort
     ? `/request?startDate=${selectedRange.from.toISOString().split('T')[0]}&endDate=${selectedRange.to.toISOString().split('T')[0]}`
     : null;
 
@@ -60,6 +73,7 @@ export default function AvailabilityCalendar() {
       <h2 className="text-2xl font-semibold tracking-tight mb-2 text-center">Check Availability</h2>
       <p className="text-center text-slate-600 mb-6 text-sm">
         Select dates below to see if they are available and start your request.
+        Minimum stay is {effectiveMinNights} night{effectiveMinNights === 1 ? '' : 's'}.
       </p>
 
       {loading ? (
@@ -102,6 +116,11 @@ export default function AvailabilityCalendar() {
                 {hasConflict ? (
                   <div className="text-red-600 text-sm mb-4">
                     These dates overlap with unavailable periods.
+                  </div>
+                ) : tooShort ? (
+                  <div className="text-red-600 text-sm mb-4">
+                    Minimum stay is {effectiveMinNights} night{effectiveMinNights === 1 ? '' : 's'}
+                    {nightsSelected > 0 ? ` (you selected ${nightsSelected}).` : '.'}
                   </div>
                 ) : (
                   <Link

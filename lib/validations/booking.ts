@@ -22,8 +22,12 @@ export const bookingRequestSchema = z
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>
 
 // Additional business rule validation
-export const validateBookingDates = (data: { startDate: Date; endDate: Date }) => {
+export const validateBookingDates = (
+  data: { startDate: Date; endDate: Date },
+  options?: { minNights?: number }
+) => {
   const errors: string[] = []
+  const minNights = options?.minNights ?? 2
 
   if (data.endDate <= data.startDate) {
     errors.push('End date must be after start date')
@@ -33,8 +37,8 @@ export const validateBookingDates = (data: { startDate: Date; endDate: Date }) =
     (data.endDate.getTime() - data.startDate.getTime()) / (1000 * 60 * 60 * 24)
   )
 
-  if (nights < 2) {
-    errors.push('Minimum stay is 2 nights')
+  if (nights < minNights) {
+    errors.push(`Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}`)
   }
 
   if (nights > 30) {

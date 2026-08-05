@@ -20,6 +20,7 @@ export async function GET() {
           holidayRate: 700,
           weeklyDiscount: 350,
           cleaningFee: 300,
+          minNights: 2,
         },
       });
     }
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { weekdayRate, weekendRate, holidayRate, weeklyDiscount, cleaningFee } = body;
+    const { weekdayRate, weekendRate, holidayRate, weeklyDiscount, cleaningFee, minNights } = body;
 
     // Basic validation
     if (
@@ -48,13 +49,21 @@ export async function POST(request: NextRequest) {
       typeof weekendRate !== 'number' ||
       typeof holidayRate !== 'number' ||
       typeof weeklyDiscount !== 'number' ||
-      typeof cleaningFee !== 'number'
+      typeof cleaningFee !== 'number' ||
+      typeof minNights !== 'number'
     ) {
       return NextResponse.json({ error: 'All rate fields are required and must be numbers' }, { status: 400 });
     }
 
     if (weekdayRate < 0 || weekendRate < 0 || holidayRate < 0 || weeklyDiscount < 0 || cleaningFee < 0) {
       return NextResponse.json({ error: 'Rates cannot be negative' }, { status: 400 });
+    }
+
+    if (!Number.isInteger(minNights) || minNights < 1) {
+      return NextResponse.json(
+        { error: 'Minimum nights must be a whole number of at least 1' },
+        { status: 400 }
+      );
     }
 
     let setting = await prisma.rateSetting.findFirst();
@@ -68,6 +77,7 @@ export async function POST(request: NextRequest) {
           holidayRate,
           weeklyDiscount,
           cleaningFee,
+          minNights,
         },
       });
       return NextResponse.json(updated);
@@ -79,6 +89,7 @@ export async function POST(request: NextRequest) {
           holidayRate,
           weeklyDiscount,
           cleaningFee,
+          minNights,
         },
       });
       return NextResponse.json(created);

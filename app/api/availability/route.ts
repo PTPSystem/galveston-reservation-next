@@ -55,8 +55,13 @@ export async function GET(request: NextRequest) {
       })),
     ].sort((a, b) => a.startDate.localeCompare(b.startDate));
 
+    const rateSetting = await prisma.rateSetting.findFirst({
+      select: { minNights: true },
+    });
+
     return NextResponse.json({
       unavailable: unavailablePeriods,
+      minNights: rateSetting?.minNights ?? 2,
     });
   } catch (error) {
     console.error('Failed to fetch availability:', error);

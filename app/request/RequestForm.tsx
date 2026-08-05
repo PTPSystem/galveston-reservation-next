@@ -19,6 +19,7 @@ export default function RequestForm() {
   // Availability data
   const [unavailablePeriods, setUnavailablePeriods] = useState<Array<{ startDate: string; endDate: string }>>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(true);
+  const [minNights, setMinNights] = useState(2);
 
   // Prefill dates from URL (coming from calendar on homepage)
   const searchParams = useSearchParams();
@@ -49,6 +50,9 @@ export default function RequestForm() {
         if (res.ok) {
           const data = await res.json();
           setUnavailablePeriods(data.unavailable || []);
+          if (typeof data.minNights === 'number' && data.minNights >= 1) {
+            setMinNights(data.minNights);
+          }
         }
       } catch (error) {
         console.error('Failed to load availability', error);
@@ -66,7 +70,7 @@ export default function RequestForm() {
 
     if (newStart) {
       const nextDay = new Date(newStart);
-      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setDate(nextDay.getDate() + minNights);
       const nextDayStr = nextDay.toISOString().split('T')[0];
 
       if (!endDate || endDate <= newStart) {
@@ -84,6 +88,15 @@ export default function RequestForm() {
     return !(endDate < period.startDate || startDate > period.endDate);
   });
 
+  const nightsCount =
+    startDate && endDate
+      ? Math.ceil(
+          (new Date(endDate + 'T00:00:00').getTime() -
+            new Date(startDate + 'T00:00:00').getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : 0;
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -91,6 +104,8 @@ export default function RequestForm() {
     if (!endDate) newErrors.endDate = 'Check-out date is required';
     if (startDate && endDate && endDate <= startDate) {
       newErrors.endDate = 'Check-out must be after check-in';
+    } else if (startDate && endDate && nightsCount < minNights) {
+      newErrors.endDate = `Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}`;
     }
     if (!numGuests || numGuests < 1 || numGuests > 10) {
       newErrors.numGuests = 'Please select between 1 and 10 guests';
@@ -231,7 +246,15 @@ export default function RequestForm() {
               name="endDate"
               value={endDate}
               onChange={handleEndDateChange}
-              min={startDate ? new Date(new Date(startDate).getTime() + 86400000).toISOString().split('T')[0] : undefined}
+              min={
+                startDate
+                  ? new Date(
+                      new Date(startDate + 'T00:00:00').getTime() + minNights * 86400000
+                    )
+                      .toISOString()
+                      .split('T')[0]
+                  : undefined
+              }
               required
               className={`w-full border rounded-lg px-4 py-2.5 ${errors.endDate ? 'border-red-500' : ''}`}
             />

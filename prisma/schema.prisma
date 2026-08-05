@@ -182,6 +182,7 @@ model RateSetting {
   holidayRate     Int      @default(700)
   weeklyDiscount  Int      @default(350)
   cleaningFee     Int      @default(300)
+  minNights       Int      @default(2) @map("min_nights")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("rate_settings")

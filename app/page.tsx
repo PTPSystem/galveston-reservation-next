@@ -1,7 +1,15 @@
 import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 import Image from "next/image";
+import prisma from "@/lib/prisma";
 
-export default function BayfrontRetreatLanding() {
+export const dynamic = 'force-dynamic';
+
+export default async function BayfrontRetreatLanding() {
+  const rateSetting = await prisma.rateSetting.findFirst({
+    select: { minNights: true },
+  });
+  const minNights = rateSetting?.minNights ?? 2;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero - Stunning property photo */}
@@ -86,7 +94,10 @@ export default function BayfrontRetreatLanding() {
           </div>
           <div>
             <div className="font-medium text-slate-800">Minimum Stay</div>
-            <div>2 nights (longer stays preferred in peak season)</div>
+            <div>
+              {minNights} night{minNights === 1 ? '' : 's'}
+              {minNights > 1 ? ' (longer stays preferred in peak season)' : ''}
+            </div>
           </div>
         </div>
       </div>
@@ -133,7 +144,7 @@ export default function BayfrontRetreatLanding() {
             <h2 className="text-3xl font-semibold tracking-tight">Check Availability &amp; Request Your Dates</h2>
             <p className="text-slate-600 mt-2">Select dates on the calendar below. If available, you can start your booking request directly.</p>
           </div>
-          <AvailabilityCalendar />
+          <AvailabilityCalendar minNights={minNights} />
         </div>
       </div>
 

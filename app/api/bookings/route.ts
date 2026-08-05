@@ -29,11 +29,17 @@ export async function POST(request: NextRequest) {
 
     const data = validation.data;
 
+    const rateSetting = await prisma.rateSetting.findFirst();
+    const minNights = rateSetting?.minNights ?? 2;
+
     // Additional business rules
-    const dateErrors = validateBookingDates({
-      startDate: data.startDate,
-      endDate: data.endDate,
-    });
+    const dateErrors = validateBookingDates(
+      {
+        startDate: data.startDate,
+        endDate: data.endDate,
+      },
+      { minNights }
+    );
 
     if (dateErrors.length > 0) {
       return NextResponse.json(

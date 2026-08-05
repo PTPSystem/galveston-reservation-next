@@ -52,6 +52,7 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
     holidayRate: 700,
     weeklyDiscount: 350,
     cleaningFee: 300,
+    minNights: 2,
     updatedAt: new Date(),
   } as any;
 
@@ -94,6 +95,7 @@ export default async function AdminQuotePage({ params }: { params: Promise<{ id:
     holidayRate: rateSetting.holidayRate,
     weeklyDiscount: rateSetting.weeklyDiscount,
     cleaningFee: rateSetting.cleaningFee,
+    minNights: rateSetting.minNights ?? 2,
   };
 
   return (
