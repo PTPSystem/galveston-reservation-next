@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     return authResult.response;
   }
 
+  try {
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
 
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   let matched = 0;
   let unmatched: string[] = [];
   const skipped: string[] = [];
+  const errors: string[] = [];
   const debugRows: any[] = [];
 
   for (const { row, resId, skippedReason, score } of rows) {
@@ -39,6 +41,8 @@ export async function POST(request: NextRequest) {
       skipped.push(`${resId}: ${skippedReason} (score=${score})`);
       continue;
     }
+
+    try {
 
     const checkIn = parseVrboDate(
       getField(row, 'Check-in', 'Check In', 'check-in')
@@ -238,10 +242,48 @@ export async function POST(request: NextRequest) {
       select: { payout: true, grossBookingAmount: true },
     });
 
+    // VRBO sometimes reissues a different HA- ID for the same stay; an older
+    // payout row may already hold the unique booking_request_id link.
+    let linkedByBooking: { reservationId: string; payout: number; grossBookingAmount: number } | null =
+      null;
+    if (bookingRequestId) {
+      linkedByBooking = await prisma.vrboPayout.findFirst({
+        where: {
+          bookingRequestId,
+          NOT: { reservationId: resId },
+        },
+        select: {
+          reservationId: true,
+          payout: true,
+          grossBookingAmount: true,
+        },
+      });
+    }
+
     const safeGross =
-      amounts.gross !== 0 ? amounts.gross : existingPayout?.grossBookingAmount || 0;
+      amounts.gross !== 0
+        ? amounts.gross
+        : existingPayout?.grossBookingAmount || linkedByBooking?.grossBookingAmount || 0;
     const safePayout =
-      amounts.payout !== 0 ? amounts.payout : existingPayout?.payout || 0;
+      amounts.payout !== 0
+        ? amounts.payout
+        : existingPayout?.payout || linkedByBooking?.payout || 0;
+
+    if (bookingRequestId) {
+      await prisma.vrboPayout.updateMany({
+        where: {
+          bookingRequestId,
+          NOT: { reservationId: resId },
+        },
+        data: {
+          bookingRequestId: null,
+          // Avoid double-counting the same stay under two HA- IDs in reports
+          ...(amounts.payout !== 0
+            ? { payout: 0, grossBookingAmount: 0, deductions: 0 }
+            : {}),
+        },
+      });
+    }
 
     await prisma.vrboPayout.upsert({
       where: { reservationId: resId },
@@ -287,6 +329,7 @@ export async function POST(request: NextRequest) {
     });
 
     imported++;
+    thisDebug.unlinkedPriorReservationId = linkedByBooking?.reservationId || null;
 
     if (matchedBooking) {
       matched++;
@@ -331,22 +374,44 @@ export async function POST(request: NextRequest) {
     } else {
       unmatched.push(resId);
     }
+    } catch (rowError: any) {
+      const msg = rowError?.message || String(rowError);
+      errors.push(`${resId}: ${msg}`);
+      debugRows.push({
+        resId,
+        error: msg,
+        matchMethod: 'error',
+      });
+    }
   }
 
   return NextResponse.json({
-    success: true,
+    success: errors.length === 0,
     imported,
     matched,
     unmatched,
     skipped,
+    errors,
     message: `Imported ${imported} reservations. Matched ${matched} to existing VRBO bookings.${
       skipped.length ? ` Skipped ${skipped.length} non-financial rows.` : ''
-    }`,
+    }${errors.length ? ` ${errors.length} row error(s).` : ''}`,
+    error: errors.length ? errors.slice(0, 3).join(' | ') : undefined,
     debug: {
-      note: 'Uses best financial row per Reservation ID (prefers Payment Type=Rent). Parses $-formatted amounts. Matches bookings by dates only.',
+      note: 'Uses best financial row per Reservation ID (prefers Payment Type=Rent). Parses $-formatted amounts. Matches bookings by dates only. Re-links when VRBO reissues a different HA- ID for the same stay.',
       rows: debugRows,
     },
   });
+  } catch (error: any) {
+    console.error('VRBO import failed:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error?.message || 'Import failed',
+        message: error?.message || 'Import failed',
+      },
+      { status: 500 }
+    );
+  }
 }
 
 /** Parse currency like "$4,328.99", "($1,678.83)", "UNKNOWN", "0.00" */

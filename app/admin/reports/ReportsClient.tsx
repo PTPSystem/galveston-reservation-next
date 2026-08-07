@@ -111,7 +111,24 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
         body: formData,
       });
 
-      const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        data = {
+          success: false,
+          error: `Upload failed (HTTP ${res.status}). Response was not JSON.`,
+        };
+      }
+
+      if (!res.ok && !data.error && !data.message) {
+        data = {
+          ...data,
+          success: false,
+          error: data.error || `Upload failed (HTTP ${res.status})`,
+        };
+      }
+
       setImportResult(data);
     } catch (err) {
       setImportResult({ success: false, error: 'Upload failed. Please try again.' });
@@ -213,13 +230,21 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 {importResult.unmatched.slice(0, 8).join(', ')}{importResult.unmatched.length > 8 ? ' ...' : ''}
               </div>
             )}
+            {importResult.errors?.length > 0 && (
+              <div className="mt-1.5 text-xs opacity-80">
+                Errors:<br />
+                {importResult.errors.slice(0, 8).join(', ')}{importResult.errors.length > 8 ? ' ...' : ''}
+              </div>
+            )}
             {importResult.debug && (
               <details className="mt-2 text-[10px]">
                 <summary className="cursor-pointer">Debug (click to see parsed dates, keys, and VRBO bookings)</summary>
                 <pre className="mt-1 bg-white p-1 rounded overflow-auto max-h-64 text-[9px]">{JSON.stringify(importResult.debug, null, 2)}</pre>
               </details>
             )}
-            <div className="mt-1 text-[9px] opacity-70">Tip: The debug above shows exactly what the code parsed from your CSV (rawCheckIn + csvStartParts) and the date parts from every VRBO booking in the DB (startParts). Look for the booking with 2026-05-22 to see if startMatch is true.</div>
+            <div className="mt-1 text-[9px] opacity-70">
+              Tip: Expand Debug to compare CSV check-in/out dates with VRBO bookings in the database. Cancelled stays with no calendar booking will show as unmatched — that is expected.
+            </div>
             {importResult.success && (
               <button 
                 onClick={() => window.location.reload()} 
