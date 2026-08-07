@@ -32,13 +32,52 @@ export default async function ReportsPage() {
   });
 
   // Fetch VRBO payouts early so we can enrich per-booking gross for lists
-  const vrboPayouts = await prisma.vrboPayout.findMany();
+  const vrboPayouts = await prisma.vrboPayout.findMany({
+    orderBy: { checkIn: 'desc' },
+  });
   const payoutByBookingId = new Map<number, number>();
   for (const p of vrboPayouts) {
     if (p.bookingRequestId) {
       payoutByBookingId.set(p.bookingRequestId, p.payout || 0);
     }
   }
+
+  const unmatchedPayouts = vrboPayouts
+    .filter((p) => !p.bookingRequestId)
+    .map((p) => ({
+      reservationId: p.reservationId,
+      guestName:
+        [p.travelerFirstName, p.travelerLastName].filter(Boolean).join(' ').trim() ||
+        'Unknown guest',
+      checkIn: p.checkIn.toISOString().split('T')[0],
+      checkOut: p.checkOut.toISOString().split('T')[0],
+      payout: p.payout,
+      grossBookingAmount: p.grossBookingAmount,
+      bookingStatus: p.bookingStatus,
+      nights: p.nights,
+    }));
+
+  const vrboBookings = await prisma.bookingRequest.findMany({
+    where: { source: 'VRBO' },
+    select: {
+      id: true,
+      guestName: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+    },
+    orderBy: { startDate: 'desc' },
+  });
+
+  const matchCandidates = vrboBookings.map((b) => ({
+    id: b.id,
+    guestName: b.guestName,
+    startDate: b.startDate.toISOString().split('T')[0],
+    endDate: b.endDate.toISOString().split('T')[0],
+    status: b.status,
+    hasLinkedPayout: payoutByBookingId.has(b.id),
+    linkedPayout: payoutByBookingId.get(b.id) ?? null,
+  }));
 
   // Process into monthly summaries
   const monthlyMap = new Map<string, any>();
@@ -268,7 +307,9 @@ export default async function ReportsPage() {
       <ReportsClient 
         monthlySummaries={monthlySummaries} 
         yearlyData={yearlyData} 
-        currentYear={currentYear} 
+        currentYear={currentYear}
+        unmatchedPayouts={unmatchedPayouts}
+        matchCandidates={matchCandidates}
       />
     </div>
   );

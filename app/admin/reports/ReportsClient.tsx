@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { UploadCloud } from 'lucide-react';
 
 interface MonthlySummary {
@@ -40,19 +40,75 @@ interface YearlyData {
   expenses?: number;
 }
 
+interface UnmatchedPayout {
+  reservationId: string;
+  guestName: string;
+  checkIn: string;
+  checkOut: string;
+  payout: number;
+  grossBookingAmount: number;
+  bookingStatus: string | null;
+  nights: number;
+}
+
+interface MatchCandidate {
+  id: number;
+  guestName: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  hasLinkedPayout: boolean;
+  linkedPayout: number | null;
+}
+
 interface ReportsClientProps {
   monthlySummaries: MonthlySummary[];
   yearlyData: YearlyData;
   currentYear: number;
+  unmatchedPayouts: UnmatchedPayout[];
+  matchCandidates: MatchCandidate[];
 }
 
-export default function ReportsClient({ monthlySummaries, yearlyData, currentYear }: ReportsClientProps) {
+function formatUtcDate(isoDate: string) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  if (!y || !m || !d) return isoDate;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function daysBetween(a: string, b: string) {
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  const ms =
+    Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad);
+  return Math.round(ms / (1000 * 60 * 60 * 24));
+}
+
+export default function ReportsClient({
+  monthlySummaries,
+  yearlyData,
+  currentYear,
+  unmatchedPayouts: initialUnmatched,
+  matchCandidates,
+}: ReportsClientProps) {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [unmatchedPayouts, setUnmatchedPayouts] = useState(initialUnmatched);
+  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [matchingId, setMatchingId] = useState<string | null>(null);
+  const [matchMessage, setMatchMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Get available years from data
   const availableYears = Array.from(
@@ -96,6 +152,75 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
       style: 'currency',
       currency: 'USD',
     }).format(amount || 0);
+  };
+
+  const rankedCandidates = useMemo(() => {
+    const byPayout: Record<string, MatchCandidate[]> = {};
+    for (const payout of unmatchedPayouts) {
+      byPayout[payout.reservationId] = [...matchCandidates]
+        .map((c) => ({
+          candidate: c,
+          score:
+            Math.abs(daysBetween(payout.checkIn, c.startDate)) +
+            Math.abs(daysBetween(payout.checkOut, c.endDate)),
+        }))
+        .sort((a, b) => {
+          if (a.score !== b.score) return a.score - b.score;
+          return b.candidate.startDate.localeCompare(a.candidate.startDate);
+        })
+        .map((x) => x.candidate);
+    }
+    return byPayout;
+  }, [unmatchedPayouts, matchCandidates]);
+
+  const handleManualMatch = async (
+    reservationId: string,
+    bookingRequestIdOverride?: string
+  ) => {
+    const raw = bookingRequestIdOverride || selections[reservationId];
+    if (!raw) {
+      setMatchMessage({ type: 'error', text: 'Select a booking first.' });
+      return;
+    }
+
+    setMatchingId(reservationId);
+    setMatchMessage(null);
+
+    try {
+      const res = await fetch('/api/admin/reports/vrbo-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservationId,
+          bookingRequestId: parseInt(raw, 10),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setMatchMessage({
+          type: 'error',
+          text: data.error || 'Match failed',
+        });
+        return;
+      }
+
+      setUnmatchedPayouts((prev) =>
+        prev.filter((p) => p.reservationId !== reservationId)
+      );
+      setSelections((prev) => {
+        const next = { ...prev };
+        delete next[reservationId];
+        return next;
+      });
+      setMatchMessage({
+        type: 'success',
+        text: data.message || 'Matched. Reload to refresh report totals.',
+      });
+    } catch {
+      setMatchMessage({ type: 'error', text: 'Match failed. Please try again.' });
+    } finally {
+      setMatchingId(null);
+    }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -253,6 +378,130 @@ export default function ReportsClient({ monthlySummaries, yearlyData, currentYea
                 Reload page to see updated reports
               </button>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Manual match for unmatched payouts */}
+      <div className="bg-white rounded-2xl border p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+          <div>
+            <h3 className="font-semibold text-slate-900">Manual VRBO Match</h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Payouts that did not auto-match by date. Pick the calendar booking to link
+              (iCal has no HA- reservation ID). Dates below are calendar days in UTC.
+            </p>
+          </div>
+          <div className="text-sm text-slate-500 shrink-0">
+            {unmatchedPayouts.length} unmatched
+          </div>
+        </div>
+
+        {matchMessage && (
+          <div
+            className={`mb-4 p-3 rounded-xl text-sm border ${
+              matchMessage.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-red-50 border-red-200 text-red-700'
+            }`}
+          >
+            {matchMessage.text}
+            {matchMessage.type === 'success' && (
+              <button
+                onClick={() => window.location.reload()}
+                className="ml-2 underline hover:no-underline"
+              >
+                Reload reports
+              </button>
+            )}
+          </div>
+        )}
+
+        {unmatchedPayouts.length === 0 ? (
+          <p className="text-sm text-slate-500">All imported payouts are linked to a booking.</p>
+        ) : (
+          <div className="space-y-4">
+            {unmatchedPayouts.map((payout) => {
+              const candidates = rankedCandidates[payout.reservationId] || matchCandidates;
+              const suggested = candidates[0];
+              const selected =
+                selections[payout.reservationId] ||
+                (suggested && !suggested.hasLinkedPayout ? String(suggested.id) : '');
+
+              return (
+                <div
+                  key={payout.reservationId}
+                  className="border rounded-xl p-4 flex flex-col gap-3 lg:flex-row lg:items-end"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-slate-900">{payout.guestName}</div>
+                    <div className="text-sm text-slate-600 mt-0.5">
+                      {formatUtcDate(payout.checkIn)} – {formatUtcDate(payout.checkOut)}
+                      {payout.nights ? ` · ${payout.nights} nights` : ''}
+                      {payout.bookingStatus ? ` · ${payout.bookingStatus}` : ''}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1 font-mono">
+                      {payout.reservationId}
+                    </div>
+                    <div className="text-sm font-medium text-slate-900 mt-2">
+                      Payout {formatCurrency(payout.payout)}
+                      <span className="text-slate-500 font-normal">
+                        {' '}
+                        (gross {formatCurrency(payout.grossBookingAmount)})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 w-full lg:max-w-md">
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      Link to booking
+                    </label>
+                    <select
+                      value={selected}
+                      onChange={(e) =>
+                        setSelections((prev) => ({
+                          ...prev,
+                          [payout.reservationId]: e.target.value,
+                        }))
+                      }
+                      className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="">Select a VRBO booking…</option>
+                      {candidates.map((c) => {
+                        const startDiff = Math.abs(
+                          daysBetween(payout.checkIn, c.startDate)
+                        );
+                        const endDiff = Math.abs(
+                          daysBetween(payout.checkOut, c.endDate)
+                        );
+                        const proximity =
+                          startDiff === 0 && endDiff === 0
+                            ? 'exact dates'
+                            : `±${startDiff + endDiff}d`;
+                        return (
+                          <option key={c.id} value={String(c.id)}>
+                            #{c.id} {c.guestName} · {formatUtcDate(c.startDate)}–
+                            {formatUtcDate(c.endDate)} · {proximity}
+                            {c.hasLinkedPayout
+                              ? ` · already linked (${formatCurrency(c.linkedPayout || 0)})`
+                              : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!selected || matchingId === payout.reservationId}
+                    onClick={() => handleManualMatch(payout.reservationId, selected)}
+                    className="shrink-0 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold"
+                  >
+                    {matchingId === payout.reservationId ? 'Matching…' : 'Match'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
