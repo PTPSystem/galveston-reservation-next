@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
   const rawRows = parseVrboCsv(text);
   const rows = selectBestRowsPerReservation(rawRows);
 
+  const ignoredRows = await prisma.vrboIgnoredReservation.findMany({
+    select: { reservationId: true },
+  });
+  const ignoredIds = new Set(ignoredRows.map((r) => r.reservationId));
+
   let imported = 0;
   let matched = 0;
   let unmatched: string[] = [];
@@ -37,6 +42,16 @@ export async function POST(request: NextRequest) {
   const debugRows: any[] = [];
 
   for (const { row, resId, skippedReason, score } of rows) {
+    if (ignoredIds.has(resId)) {
+      skipped.push(`${resId}: previously deleted (ignored)`);
+      debugRows.push({
+        resId,
+        matchMethod: 'ignored',
+        skippedReason: 'previously deleted (ignored)',
+      });
+      continue;
+    }
+
     if (skippedReason) {
       skipped.push(`${resId}: ${skippedReason} (score=${score})`);
       continue;
@@ -393,11 +408,11 @@ export async function POST(request: NextRequest) {
     skipped,
     errors,
     message: `Imported ${imported} reservations. Matched ${matched} to existing VRBO bookings.${
-      skipped.length ? ` Skipped ${skipped.length} non-financial rows.` : ''
+      skipped.length ? ` Skipped ${skipped.length} row(s).` : ''
     }${errors.length ? ` ${errors.length} row error(s).` : ''}`,
     error: errors.length ? errors.slice(0, 3).join(' | ') : undefined,
     debug: {
-      note: 'Uses best financial row per Reservation ID (prefers Payment Type=Rent). Parses $-formatted amounts. Matches bookings by dates only. Re-links when VRBO reissues a different HA- ID for the same stay.',
+      note: 'Uses best financial row per Reservation ID (prefers Payment Type=Rent). Parses $-formatted amounts. Matches bookings by dates only. Re-links when VRBO reissues a different HA- ID for the same stay. Skips reservation IDs previously deleted from Manual Match.',
       rows: debugRows,
     },
   });

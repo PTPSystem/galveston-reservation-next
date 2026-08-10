@@ -123,6 +123,16 @@ model VrboPayout {
   @@map("vrbo_payouts")
 }
 
+/// Reservation IDs the admin chose not to match; skipped on future VRBO CSV imports.
+model VrboIgnoredReservation {
+  id            Int      @id @default(autoincrement())
+  reservationId String   @unique @map("reservation_id")
+  note          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("vrbo_ignored_reservations")
+}
+
 enum BookingSource {
   DIRECT
   VRBO
