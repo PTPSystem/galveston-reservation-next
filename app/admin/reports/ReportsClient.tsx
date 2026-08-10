@@ -105,6 +105,7 @@ export default function ReportsClient({
   const [unmatchedPayouts, setUnmatchedPayouts] = useState(initialUnmatched);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [matchingId, setMatchingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [matchMessage, setMatchMessage] = useState<{
     type: 'success' | 'error';
     text: string;
@@ -220,6 +221,58 @@ export default function ReportsClient({
       setMatchMessage({ type: 'error', text: 'Match failed. Please try again.' });
     } finally {
       setMatchingId(null);
+    }
+  };
+
+  const handleDeleteUnmatched = async (reservationId: string) => {
+    const confirmed = window.confirm(
+      `Delete ${reservationId} and remember this ID so future VRBO uploads skip it?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(reservationId);
+    setMatchMessage(null);
+
+    try {
+      const res = await fetch('/api/admin/reports/vrbo-ignore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservationId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setMatchMessage({
+          type: 'error',
+          text: data.error || 'Delete failed',
+        });
+        return;
+      }
+
+      setUnmatchedPayouts((prev) =>
+        prev.filter((p) => p.reservationId !== reservationId)
+      );
+      setSelections((prev) => {
+        const next = { ...prev };
+        delete next[reservationId];
+        return next;
+      });
+      setImportResult((prev: any) => {
+        if (!prev?.unmatched?.length) return prev;
+        return {
+          ...prev,
+          unmatched: prev.unmatched.filter((id: string) => id !== reservationId),
+        };
+      });
+      setMatchMessage({
+        type: 'success',
+        text:
+          data.message ||
+          `Deleted ${reservationId}. Reload to refresh report totals.`,
+      });
+    } catch {
+      setMatchMessage({ type: 'error', text: 'Delete failed. Please try again.' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -389,7 +442,8 @@ export default function ReportsClient({
             <h3 className="font-semibold text-slate-900">Manual VRBO Match</h3>
             <p className="text-sm text-slate-600 mt-1">
               Payouts that did not auto-match by date. Pick the calendar booking to link
-              (iCal has no HA- reservation ID). Dates below are calendar days in UTC.
+              (iCal has no HA- reservation ID), or delete an entry to ignore that
+              reservation ID on future uploads. Dates below are calendar days in UTC.
             </p>
           </div>
           <div className="text-sm text-slate-500 shrink-0">
@@ -491,14 +545,32 @@ export default function ReportsClient({
                     </select>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={!selected || matchingId === payout.reservationId}
-                    onClick={() => handleManualMatch(payout.reservationId, selected)}
-                    className="shrink-0 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold"
-                  >
-                    {matchingId === payout.reservationId ? 'Matching…' : 'Match'}
-                  </button>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      disabled={
+                        !selected ||
+                        matchingId === payout.reservationId ||
+                        deletingId === payout.reservationId
+                      }
+                      onClick={() => handleManualMatch(payout.reservationId, selected)}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold"
+                    >
+                      {matchingId === payout.reservationId ? 'Matching…' : 'Match'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        matchingId === payout.reservationId ||
+                        deletingId === payout.reservationId
+                      }
+                      onClick={() => handleDeleteUnmatched(payout.reservationId)}
+                      className="px-4 py-2.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50 text-red-700 text-sm font-semibold"
+                      title="Remove this payout and skip this reservation ID on future imports"
+                    >
+                      {deletingId === payout.reservationId ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
                 </div>
               );
             })}
