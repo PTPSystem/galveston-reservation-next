@@ -42,6 +42,35 @@ export default async function AdminRequestsPage() {
     return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
   });
 
+  const serializedRequests = requests.map((r) => {
+    const pricing =
+      r.pricing && typeof r.pricing === 'object' && !Array.isArray(r.pricing)
+        ? (r.pricing as Record<string, unknown>)
+        : null;
+
+    return {
+      id: r.id,
+      guestName: r.guestName,
+      guestEmail: r.guestEmail,
+      startDate: r.startDate.toISOString(),
+      endDate: r.endDate.toISOString(),
+      numGuests: r.numGuests,
+      status: r.status,
+      source: r.source,
+      createdAt: r.createdAt.toISOString(),
+      pricing: pricing
+        ? {
+            depositAmount:
+              typeof pricing.depositAmount === 'number' ? pricing.depositAmount : undefined,
+            depositStatus:
+              typeof pricing.depositStatus === 'string' ? pricing.depositStatus : undefined,
+            totalGuestPrice:
+              typeof pricing.totalGuestPrice === 'number' ? pricing.totalGuestPrice : undefined,
+          }
+        : null,
+    };
+  });
+
   return (
     <div className="max-w-7xl mx-auto py-6 px-4 sm:py-8 sm:px-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
@@ -50,7 +79,7 @@ export default async function AdminRequestsPage() {
         <SyncVrboButton />
       </div>
 
-      <RequestsClient requests={requests} />
+      <RequestsClient requests={serializedRequests} />
     </div>
   );
 }

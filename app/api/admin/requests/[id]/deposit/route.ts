@@ -83,7 +83,7 @@ export async function POST(
   const updated = await prisma.bookingRequest.update({
     where: { id: requestId },
     data: {
-      pricing,
+      pricing: pricing as object,
       status: 'CONFIRMED',
       approvedAt: new Date(),
     },
@@ -110,7 +110,7 @@ export async function POST(
     success: true,
     action,
     status: updated.status,
-    depositStatus: pricing.depositStatus,
-    depositAmount: pricing.depositAmount,
+    depositStatus: (pricing as { depositStatus?: string }).depositStatus,
+    depositAmount: (pricing as { depositAmount?: number }).depositAmount,
   });
 }
