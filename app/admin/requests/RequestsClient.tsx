@@ -200,6 +200,8 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
           {/* Search */}
           <div className="flex-1">
             <input
+              id="requests-search"
+              name="requestsSearch"
               type="text"
               placeholder="Search by name or email..."
               value={searchTerm}

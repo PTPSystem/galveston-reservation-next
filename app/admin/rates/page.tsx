@@ -138,6 +138,8 @@ export default function RateSettingsPage() {
               <div className="relative">
                 <span className="absolute left-4 top-3 text-slate-500">$</span>
                 <input
+                  id="weekday-rate"
+                  name="weekdayRate"
                   type="number"
                   value={rates.weekdayRate}
                   onChange={(e) => setRates({ ...rates, weekdayRate: parseInt(e.target.value) || 0 })}
@@ -154,6 +156,8 @@ export default function RateSettingsPage() {
               <div className="relative">
                 <span className="absolute left-4 top-3 text-slate-500">$</span>
                 <input
+                  id="weekend-rate"
+                  name="weekendRate"
                   type="number"
                   value={rates.weekendRate}
                   onChange={(e) => setRates({ ...rates, weekendRate: parseInt(e.target.value) || 0 })}
@@ -170,6 +174,8 @@ export default function RateSettingsPage() {
               <div className="relative">
                 <span className="absolute left-4 top-3 text-slate-500">$</span>
                 <input
+                  id="holiday-rate"
+                  name="holidayRate"
                   type="number"
                   value={rates.holidayRate}
                   onChange={(e) => setRates({ ...rates, holidayRate: parseInt(e.target.value) || 0 })}
@@ -187,6 +193,8 @@ export default function RateSettingsPage() {
               <div className="relative">
                 <span className="absolute left-4 top-3 text-slate-500">$</span>
                 <input
+                  id="weekly-discount"
+                  name="weeklyDiscount"
                   type="number"
                   value={rates.weeklyDiscount}
                   onChange={(e) => setRates({ ...rates, weeklyDiscount: parseInt(e.target.value) || 0 })}
@@ -204,6 +212,8 @@ export default function RateSettingsPage() {
               <div className="relative">
                 <span className="absolute left-4 top-3 text-slate-500">$</span>
                 <input
+                  id="cleaning-fee"
+                  name="cleaningFee"
                   type="number"
                   value={rates.cleaningFee}
                   onChange={(e) => setRates({ ...rates, cleaningFee: parseInt(e.target.value) || 0 })}
@@ -219,6 +229,8 @@ export default function RateSettingsPage() {
                 Minimum Nights
               </label>
               <input
+                id="min-nights"
+                name="minNights"
                 type="number"
                 value={rates.minNights}
                 onChange={(e) => setRates({ ...rates, minNights: parseInt(e.target.value) || 1 })}

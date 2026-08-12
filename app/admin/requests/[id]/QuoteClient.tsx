@@ -807,8 +807,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <div className="text-xs text-slate-600 mb-0.5">Check-in</div>
+              <label htmlFor="quote-check-in" className="block text-xs text-slate-600 mb-0.5">Check-in</label>
               <input
+                id="quote-check-in"
+                name="checkIn"
                 type="date"
                 value={editedStart}
                 onChange={(e) => setEditedStart(e.target.value)}
@@ -816,8 +818,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
               />
             </div>
             <div>
-              <div className="text-xs text-slate-600 mb-0.5">Check-out</div>
+              <label htmlFor="quote-check-out" className="block text-xs text-slate-600 mb-0.5">Check-out</label>
               <input
+                id="quote-check-out"
+                name="checkOut"
                 type="date"
                 value={editedEnd}
                 onChange={(e) => setEditedEnd(e.target.value)}
@@ -1146,8 +1150,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 Tax exemptions (friends &amp; family)
               </div>
               <div className="space-y-2 text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label htmlFor="exclude-city-tax" className="flex items-center gap-2 cursor-pointer">
                   <input
+                    id="exclude-city-tax"
+                    name="excludeCityTax"
                     type="checkbox"
                     checked={excludeCityTax}
                     onChange={(e) => setExcludeCityTax(e.target.checked)}
@@ -1155,8 +1161,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                   />
                   <span>Exclude city tax (9% Jamaica Beach)</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label htmlFor="exclude-state-tax" className="flex items-center gap-2 cursor-pointer">
                   <input
+                    id="exclude-state-tax"
+                    name="excludeStateTax"
                     type="checkbox"
                     checked={excludeStateTax}
                     onChange={(e) => setExcludeStateTax(e.target.checked)}
@@ -1171,12 +1179,14 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
               {/* Cleaning fee override - requested so it can be adjusted per booking (e.g. friends & family) */}
               <div className="mt-4 pt-3 border-t">
-                <label className="block text-sm font-medium text-slate-900 mb-1">
+                <label htmlFor="cleaning-fee-override" className="block text-sm font-medium text-slate-900 mb-1">
                   Cleaning Fee Override
                 </label>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500">$</span>
                   <input
+                    id="cleaning-fee-override"
+                    name="cleaningFeeOverride"
                     type="number"
                     value={customCleaningFee ?? ''}
                     onChange={(e) => {
@@ -1264,12 +1274,14 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                   </div>
 
                   <div className="pt-4 mt-2 border-t border-dashed border-slate-200 space-y-2">
-                    <label className="block text-sm font-medium text-slate-800">
+                    <label htmlFor="deposit-amount" className="block text-sm font-medium text-slate-800">
                       Deposit to invoice
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-slate-500">$</span>
                       <input
+                        id="deposit-amount"
+                        name="depositAmount"
                         type="number"
                         min="0"
                         step="1"
@@ -1480,10 +1492,12 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-800">Adjustment Amount</label>
+                  <label htmlFor="daily-adjustment-amount" className="block text-sm font-medium mb-1 text-slate-800">Adjustment Amount</label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-slate-500">$</span>
                     <input
+                      id="daily-adjustment-amount"
+                      name="dailyAdjustmentAmount"
                       type="number"
                       value={dailyAmount}
                       onChange={(e) => setDailyAmount(e.target.value)}
@@ -1495,8 +1509,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-800">Reason (required for audit)</label>
+                  <label htmlFor="daily-adjustment-reason" className="block text-sm font-medium mb-1 text-slate-800">Reason (required for audit)</label>
                   <textarea
+                    id="daily-adjustment-reason"
+                    name="dailyAdjustmentReason"
                     value={dailyReason}
                     onChange={(e) => setDailyReason(e.target.value)}
                     rows={3}
@@ -1529,10 +1545,12 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-800">Amount</label>
+                  <label htmlFor="custom-adjustment-amount" className="block text-sm font-medium mb-1 text-slate-800">Amount</label>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-slate-500">$</span>
                     <input
+                      id="custom-adjustment-amount"
+                      name="customAdjustmentAmount"
                       type="number"
                       value={customAmount}
                       onChange={(e) => setCustomAmount(e.target.value)}
@@ -1543,8 +1561,10 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-800">Reason (required for audit)</label>
+                  <label htmlFor="custom-adjustment-reason" className="block text-sm font-medium mb-1 text-slate-800">Reason (required for audit)</label>
                   <textarea
+                    id="custom-adjustment-reason"
+                    name="customAdjustmentReason"
                     value={customReason}
                     onChange={(e) => setCustomReason(e.target.value)}
                     rows={2}
