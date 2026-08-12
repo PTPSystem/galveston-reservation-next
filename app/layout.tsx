@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   title: "Bayfront Retreat | Jamaica Beach, Galveston Bay",
   description: "Private waterfront home on Galveston Bay. Book your stay with host approval.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

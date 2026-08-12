@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="7" fill="#1A3558"/>
+  <!-- waves -->
+  <path d="M6 24.5c1.6-1.2 3.2-1.2 4.8 0s3.2 1.2 4.8 0 3.2-1.2 4.8 0 3.2 1.2 4.8 0" fill="none" stroke="#7BA3B5" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M6 27c1.6-1.2 3.2-1.2 4.8 0s3.2 1.2 4.8 0 3.2-1.2 4.8 0 3.2 1.2 4.8 0" fill="none" stroke="#7BA3B5" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+  <!-- house body -->
+  <path d="M8 16.5 L16 8.5 L24 16.5 Z" fill="#D4B483"/>
+  <rect x="10" y="16" width="12" height="7.5" fill="#D4B483"/>
+  <!-- chimney -->
+  <rect x="20.5" y="10" width="2.2" height="4" fill="#D4B483"/>
+  <!-- door -->
+  <rect x="14.2" y="18.2" width="3.6" height="5.3" fill="#1A3558"/>
+  <!-- windows -->
+  <rect x="11" y="17.5" width="2.4" height="2.4" fill="#1A3558"/>
+  <rect x="18.6" y="17.5" width="2.4" height="2.4" fill="#1A3558"/>
+</svg>
