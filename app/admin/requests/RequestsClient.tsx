@@ -13,6 +13,11 @@ interface Request {
   status: string;
   source: string;
   createdAt: string | Date;
+  pricing?: {
+    depositAmount?: number;
+    depositStatus?: string;
+    totalGuestPrice?: number;
+  } | null;
 }
 
 interface RequestsClientProps {
@@ -36,6 +41,25 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const statusOptions = ['PENDING', 'REVIEWING', 'REJECTED', 'CONFIRMED', 'CANCELLED', 'PAST'];
+
+  const formatDepositBadge = (req: Request) => {
+    if (req.source === 'VRBO') return null;
+    const status = req.pricing?.depositStatus;
+    const amount = req.pricing?.depositAmount;
+    if (status === 'RECEIVED') {
+      return { label: amount != null ? `Deposit $${amount.toFixed(0)} received` : 'Deposit received', tone: 'emerald' as const };
+    }
+    if (status === 'WAIVED') {
+      return { label: 'Deposit waived', tone: 'slate' as const };
+    }
+    if (status === 'REQUESTED') {
+      return {
+        label: amount != null ? `Deposit $${amount.toFixed(0)} due` : 'Deposit due',
+        tone: 'amber' as const,
+      };
+    }
+    return null;
+  };
 
   const statusPriority: Record<string, number> = {
     PENDING: 1,
@@ -275,6 +299,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
             const startDate = new Date(req.startDate).toLocaleDateString();
             const endDate = new Date(req.endDate).toLocaleDateString();
             const submitted = new Date(req.createdAt).toLocaleDateString();
+            const depositBadge = formatDepositBadge(req);
 
             return (
               <div key={req.id} className="bg-white rounded-2xl border shadow-sm p-4">
@@ -294,6 +319,15 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                     }`}>
                       {req.status}
                     </span>
+                    {depositBadge && (
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
+                        depositBadge.tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' :
+                        depositBadge.tone === 'amber' ? 'bg-amber-50 text-amber-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {depositBadge.label}
+                      </span>
+                    )}
                     <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
                       req.source === 'VRBO' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                     }`}>
@@ -402,6 +436,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                   const nights = Math.ceil(
                     (new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)
                   );
+                  const depositBadge = formatDepositBadge(req);
                   return (
                     <tr key={req.id} className="group hover:bg-slate-50">
                       <td className="px-4 sm:px-6 py-4">
@@ -414,16 +449,27 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                       <td className="px-3 sm:px-6 py-4 text-center font-medium">{nights}</td>
                       <td className="px-3 sm:px-6 py-4 text-center">{req.numGuests}</td>
                       <td className="px-4 sm:px-6 py-4">
-                        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          req.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                          req.status === 'REVIEWING' ? 'bg-blue-100 text-blue-700' :
-                          req.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                          req.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
-                          req.status === 'CANCELLED' ? 'bg-slate-200 text-slate-700' :
-                          'bg-slate-100 text-slate-800'
-                        }`}>
-                          {req.status}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            req.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                            req.status === 'REVIEWING' ? 'bg-blue-100 text-blue-700' :
+                            req.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                            req.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
+                            req.status === 'CANCELLED' ? 'bg-slate-200 text-slate-700' :
+                            'bg-slate-100 text-slate-800'
+                          }`}>
+                            {req.status}
+                          </span>
+                          {depositBadge && (
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
+                              depositBadge.tone === 'emerald' ? 'bg-emerald-50 text-emerald-700' :
+                              depositBadge.tone === 'amber' ? 'bg-amber-50 text-amber-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {depositBadge.label}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 sm:px-6 py-4">
                         <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${

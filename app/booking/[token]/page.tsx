@@ -25,17 +25,32 @@ export default async function GuestQuoteView({ params }: Props) {
     notFound();
   }
 
-  // Only show full details if confirmed
-  const isConfirmed = booking.status === 'CONFIRMED';
   const pricing = booking.pricing as any;
+  const hasQuote = !!pricing?.totalGuestPrice;
+  const isConfirmed = booking.status === 'CONFIRMED';
+  const depositAmount =
+    typeof pricing?.depositAmount === 'number' ? pricing.depositAmount : null;
+  const depositStatus = pricing?.depositStatus as string | undefined;
+  const balanceDue =
+    depositAmount != null && typeof pricing?.totalGuestPrice === 'number'
+      ? Math.max(0, pricing.totalGuestPrice - depositAmount)
+      : null;
 
   const formatDate = (date: Date) =>
-    date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
 
   return (
     <div className="max-w-3xl mx-auto py-12 px-6">
       <div className="mb-8">
-        <a href="/" className="text-sm text-emerald-600 hover:underline">← Back to Bayfront Retreat</a>
+        <a href="/" className="text-sm text-emerald-600 hover:underline">
+          ← Back to Bayfront Retreat
+        </a>
       </div>
 
       <h1 className="text-3xl font-semibold tracking-tight mb-2">Your Quote</h1>
@@ -43,17 +58,38 @@ export default async function GuestQuoteView({ params }: Props) {
         {booking.guestName} • {formatDate(booking.startDate)} – {formatDate(booking.endDate)}
       </p>
 
-      {!isConfirmed && (
+      {!hasQuote && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
           <p className="text-amber-800">
-            Your request is still being reviewed. You will receive a personalized quote by email within 24 hours.
+            Your request is still being reviewed. You will receive a personalized quote by email
+            within 24 hours.
           </p>
         </div>
       )}
 
-      {isConfirmed && pricing && (
+      {hasQuote && !isConfirmed && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
+          <p className="text-amber-900 font-medium mb-1">Deposit required to hold dates</p>
+          <p className="text-amber-800 text-sm">
+            {depositAmount != null
+              ? `Please send a deposit of $${depositAmount.toFixed(2)}. Once we receive it, your reservation will be confirmed.`
+              : 'Please follow the deposit instructions in your quote email to confirm your stay.'}
+          </p>
+        </div>
+      )}
+
+      {isConfirmed && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-8">
+          <p className="text-emerald-900 font-medium">
+            {depositStatus === 'WAIVED'
+              ? 'Your reservation is confirmed (deposit waived).'
+              : 'Your reservation is confirmed — deposit received. Your dates are held.'}
+          </p>
+        </div>
+      )}
+
+      {hasQuote && (
         <div className="space-y-8">
-          {/* Pricing Summary */}
           <div className="bg-white rounded-2xl border p-8">
             <h2 className="font-semibold text-xl mb-6">Your Pricing</h2>
 
@@ -94,24 +130,36 @@ export default async function GuestQuoteView({ params }: Props) {
               </div>
 
               <div className="pt-4 border-t flex justify-between text-xl font-bold text-emerald-600">
-                <span>Total</span>
+                <span>Total Stay Price</span>
                 <span>${pricing.totalGuestPrice?.toFixed(2)}</span>
               </div>
+
+              {depositAmount != null && (
+                <>
+                  <div className="pt-3 border-t flex justify-between font-semibold text-teal-800">
+                    <span>Deposit {isConfirmed ? 'Paid' : 'Due'}</span>
+                    <span>${depositAmount.toFixed(2)}</span>
+                  </div>
+                  {balanceDue != null && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Balance Due Before Arrival</span>
+                      <span>${balanceDue.toFixed(2)}</span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-center">
-            <p className="font-medium text-emerald-800 mb-2">Ready to book?</p>
-            <p className="text-sm text-emerald-700">
-              Reply to the quote email or call us to confirm your dates.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {!isConfirmed && !pricing && (
-        <div className="text-slate-600">
-          We are preparing your personalized quote.
+          {!isConfirmed && (
+            <div className="bg-slate-50 border rounded-2xl p-6 text-center">
+              <p className="font-medium text-slate-800 mb-2">How to pay the deposit</p>
+              <p className="text-sm text-slate-600">
+                Reply to your quote email or call us — we will share payment instructions. Your
+                dates are held after we confirm the deposit.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

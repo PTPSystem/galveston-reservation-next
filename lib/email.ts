@@ -123,7 +123,7 @@ interface SendQuoteEmailParams {
 }
 
 /**
- * Sends the finalized quote email to the guest after admin approval.
+ * Sends the quote / deposit invoice email to the guest (dates not held until deposit is marked received).
  */
 export async function sendQuoteEmail({
   to,
@@ -163,25 +163,36 @@ export async function sendQuoteEmail({
   const texasTax = pricing.texasStateTax?.toFixed(2) ?? '0.00';
   const cleaning = pricing.cleaningFee?.toFixed(2) ?? pricing.cleaning?.toFixed(2) ?? '300.00';
   const nights = pricing.nights || '?';
+  const depositAmount =
+    typeof pricing.depositAmount === 'number' ? pricing.depositAmount : null;
+  const depositStatus = pricing.depositStatus || null;
+  const balanceDue =
+    depositAmount != null && typeof pricing.totalGuestPrice === 'number'
+      ? Math.max(0, pricing.totalGuestPrice - depositAmount)
+      : null;
+  const depositLine =
+    depositAmount != null
+      ? depositAmount.toFixed(2)
+      : null;
 
   try {
     const { data, error } = await resend.emails.send({
       from: `Bayfront Retreat <${fromEmail}>`,
       to: [to],
-      subject: `Your Reservation is Confirmed – Bayfront Retreat`,
+      subject: `Your Quote & Deposit Invoice – Bayfront Retreat`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background-color: #ffffff;">
           <h1 style="font-size: 22px; font-weight: 600; margin: 0 0 8px 0; color: #111827;">
-            Your reservation is confirmed!
+            Your quote is ready
           </h1>
           
           <p style="font-size: 15px; color: #374151; margin: 0 0 24px 0;">
             Hi ${guestName.split(' ')[0]},<br><br>
-            Great news — your stay at Bayfront Retreat has been confirmed.
+            Here is your personalized quote for Bayfront Retreat. To hold your dates, please send the deposit below. Once we receive it, your reservation will be confirmed.
           </p>
 
           <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Confirmed Dates</p>
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Requested Dates</p>
             <p style="margin: 0 0 16px 0; font-size: 15px; color: #111827;">
               <strong>${formattedStart}</strong> — <strong>${formattedEnd}</strong><br>
               ${nights} nights
@@ -223,16 +234,34 @@ export async function sendQuoteEmail({
                 <td style="padding: 4px 0; text-align: right;">$${cleaning}</td>
               </tr>
               <tr style="border-top: 2px solid #111827; font-weight: 600; font-size: 15px;">
-                <td style="padding: 10px 0 4px 0;">Total Charged</td>
+                <td style="padding: 10px 0 4px 0;">Total Stay Price</td>
                 <td style="padding: 10px 0 4px 0; text-align: right;">$${total}</td>
               </tr>
+              ${depositLine != null ? `
+              <tr>
+                <td style="padding: 10px 0 4px 0; font-weight: 600; color: #0f766e;">Deposit Due Now</td>
+                <td style="padding: 10px 0 4px 0; text-align: right; font-weight: 600; color: #0f766e;">$${depositLine}</td>
+              </tr>
+              ${balanceDue != null ? `
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">Balance Due Before Arrival</td>
+                <td style="padding: 4px 0; text-align: right; color: #6b7280;">$${balanceDue.toFixed(2)}</td>
+              </tr>` : ''}` : ''}
             </table>
           </div>
+
+          ${depositLine != null && depositStatus !== 'RECEIVED' && depositStatus !== 'WAIVED' ? `
+          <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #065f46;">Deposit invoice</p>
+            <p style="margin: 0; font-size: 14px; color: #047857;">
+              Please send a deposit of <strong>$${depositLine}</strong> to secure your dates. Reply to this email for payment instructions, or use the details we provide when you confirm.
+            </p>
+          </div>` : ''}
 
           <p style="margin: 0 0 24px 0;">
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/booking/${approvalToken}" 
                style="display: inline-block; background-color: #0f766e; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">
-              View Full Details &amp; Manage Booking
+              View Your Quote
             </a>
           </p>
 

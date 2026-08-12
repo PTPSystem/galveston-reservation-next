@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendQuoteEmail, sendInternalBookingConfirmedEmail } from '@/lib/email';
-import { getEmailRecipients } from '@/lib/email-settings';
+import { sendQuoteEmail } from '@/lib/email';
 import { requireAdminSession } from '@/lib/admin-auth';
 import {
   availabilityConflictMessage,
   findAvailabilityConflict,
 } from '@/lib/availability';
+import { defaultDepositAmount } from '@/lib/types/pricing';
 
+/**
+ * Persist quote pricing and optionally email the guest an invoice.
+ *
+ * body.action:
+ *  - 'draft'      → save pricing/dates only (no email); PENDING → REVIEWING
+ *  - 'send_quote' → save pricing, set depositStatus REQUESTED, email invoice (default)
+ *
+ * Does NOT confirm the booking or block the calendar — use /deposit for that.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -20,16 +29,29 @@ export async function POST(
   const { id } = await params;
   const requestId = parseInt(id);
   const body = await request.json();
+  const action = body.action === 'draft' ? 'draft' : 'send_quote';
 
   const booking = await prisma.bookingRequest.findUnique({
     where: { id: requestId },
-    select: { source: true, startDate: true, endDate: true },
+    select: {
+      source: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+      pricing: true,
+      guestEmail: true,
+      guestName: true,
+      approvalToken: true,
+    },
   });
   if (!booking) {
     return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
   }
   if (booking.source === 'VRBO') {
-    return NextResponse.json({ error: 'Cannot approve or price VRBO-synced bookings here' }, { status: 403 });
+    return NextResponse.json(
+      { error: 'Cannot approve or price VRBO-synced bookings here' },
+      { status: 403 }
+    );
   }
 
   const nextStart = body.startDate ? new Date(body.startDate) : booking.startDate;
@@ -45,10 +67,50 @@ export async function POST(
     );
   }
 
-  const updateData: any = {
-    status: 'CONFIRMED',
-    approvedAt: new Date(),
-    pricing: body.pricing,
+  const existingPricing =
+    booking.pricing && typeof booking.pricing === 'object'
+      ? (booking.pricing as Record<string, unknown>)
+      : {};
+
+  const incoming =
+    body.pricing && typeof body.pricing === 'object' ? body.pricing : {};
+
+  const totalGuestPrice = Number(incoming.totalGuestPrice ?? existingPricing.totalGuestPrice ?? 0);
+  let depositAmount =
+    typeof incoming.depositAmount === 'number'
+      ? incoming.depositAmount
+      : typeof existingPricing.depositAmount === 'number'
+        ? (existingPricing.depositAmount as number)
+        : defaultDepositAmount(totalGuestPrice);
+
+  if (!Number.isFinite(depositAmount) || depositAmount < 0) {
+    return NextResponse.json({ error: 'depositAmount must be a non-negative number' }, { status: 400 });
+  }
+  depositAmount = Math.round(depositAmount * 100) / 100;
+
+  const priorStatus = (existingPricing.depositStatus as string) || null;
+  const depositStatus =
+    action === 'send_quote'
+      ? priorStatus === 'RECEIVED' || priorStatus === 'WAIVED'
+        ? priorStatus
+        : 'REQUESTED'
+      : incoming.depositStatus || priorStatus || undefined;
+
+  const pricing = {
+    ...existingPricing,
+    ...incoming,
+    depositAmount,
+    depositStatus,
+    depositReceivedAt:
+      depositStatus === 'RECEIVED' || depositStatus === 'WAIVED'
+        ? existingPricing.depositReceivedAt || null
+        : null,
+  };
+
+  const updateData: Record<string, unknown> = {
+    pricing,
+    // Quotes awaiting deposit stay REVIEWING; never auto-CONFIRMED here
+    status: booking.status === 'CONFIRMED' ? 'CONFIRMED' : 'REVIEWING',
   };
   if (body.startDate) updateData.startDate = new Date(body.startDate);
   if (body.endDate) updateData.endDate = new Date(body.endDate);
@@ -58,39 +120,29 @@ export async function POST(
     data: updateData,
   });
 
-  // Use the (possibly extended) dates for email if provided in body
-  const emailStart = body.startDate ? new Date(body.startDate).toISOString() : updated.startDate.toISOString();
-  const emailEnd = body.endDate ? new Date(body.endDate).toISOString() : updated.endDate.toISOString();
+  const emailStart = body.startDate
+    ? new Date(body.startDate).toISOString()
+    : updated.startDate.toISOString();
+  const emailEnd = body.endDate
+    ? new Date(body.endDate).toISOString()
+    : updated.endDate.toISOString();
 
-  // Send quote email to guest (will reflect new dates/total if extended)
-  if (updated.approvalToken) {
+  if (action === 'send_quote' && updated.approvalToken) {
     await sendQuoteEmail({
       to: updated.guestEmail,
       guestName: updated.guestName,
       startDate: emailStart,
       endDate: emailEnd,
-      pricing: body.pricing,
+      pricing,
       approvalToken: updated.approvalToken,
     });
   }
 
-  // Notify internal recipients (Property Manager + Owner)
-  const recipients = await getEmailRecipients();
-  const internalEmails = [recipients.propertyManagerEmail, recipients.ownerEmail].filter(Boolean);
-
-  if (internalEmails.length > 0) {
-    await sendInternalBookingConfirmedEmail({
-      recipients: internalEmails,
-      guestName: updated.guestName,
-      guestEmail: updated.guestEmail,
-      startDate: emailStart,
-      endDate: emailEnd,
-      pricing: body.pricing,
-      bookingId: updated.id,
-    });
-  }
-
-  // (No external calendar event creation needed; iCal export + VRBO import + CONFIRMED records handle blocking.)
-
-  return NextResponse.json({ success: true, request: updated });
+  return NextResponse.json({
+    success: true,
+    action,
+    request: updated,
+    depositStatus: pricing.depositStatus,
+    depositAmount: pricing.depositAmount,
+  });
 }

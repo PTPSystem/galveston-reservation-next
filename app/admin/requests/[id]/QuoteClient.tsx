@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { dateRangesOverlap } from '@/lib/date-range';
+import { defaultDepositAmount } from '@/lib/types/pricing';
 
 interface BookingRequest {
   id: number;
@@ -69,10 +70,22 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
 
   // Local status so we can update it live (e.g. PENDING → REVIEWING automatically)
   const [currentStatus, setCurrentStatus] = useState(bookingRequest.status);
+  const [depositStatus, setDepositStatus] = useState<string | null>(
+    bookingRequest.pricing?.depositStatus ?? null
+  );
+  const [depositAmount, setDepositAmount] = useState<number>(() => {
+    const existing = bookingRequest.pricing?.depositAmount;
+    if (typeof existing === 'number') return existing;
+    const total = bookingRequest.pricing?.totalGuestPrice;
+    return typeof total === 'number' ? defaultDepositAmount(total) : 0;
+  });
+  const [depositAmountTouched, setDepositAmountTouched] = useState(
+    typeof bookingRequest.pricing?.depositAmount === 'number'
+  );
 
   const isSyncedVRBO = bookingRequest.source === 'VRBO';
 
-  const pageTitle = isSyncedVRBO ? 'View VRBO-synced Booking' : 'Quote Price & Approve';
+  const pageTitle = isSyncedVRBO ? 'View VRBO-synced Booking' : 'Quote, Invoice & Deposit';
 
   // Derived view-only financials for VRBO when payout data has been uploaded via CSV
   const vrboFinancials = (() => {
@@ -356,6 +369,40 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     };
   }, [nights, stayAdjustments, excludeCityTax, excludeStateTax, rateSettings]);
 
+  // Keep default deposit at 50% until the admin edits it
+  useEffect(() => {
+    if (!depositAmountTouched) {
+      setDepositAmount(defaultDepositAmount(calculations.totalGuest));
+    }
+  }, [calculations.totalGuest, depositAmountTouched]);
+
+  const buildPricingSnapshot = () => ({
+    baseRateSum: calculations.baseRateSum,
+    nightlyAdjSum: calculations.nightlyAdjSum,
+    stayAdjSum: calculations.stayAdjSum,
+    netAfterAdjustments: calculations.netAfterAdjustments,
+    jamaicaBeachTax: calculations.jamaicaBeachTax,
+    texasStateTax: calculations.texasStateTax,
+    cleaningFee: calculations.cleaning,
+    totalGuestPrice: calculations.totalGuest,
+    managementFee: calculations.managementFee,
+    ownerProceeds: calculations.ownerProceeds,
+    nights: nights.length,
+    excludeCityTax,
+    excludeStateTax,
+    customCleaningFee,
+    depositAmount,
+    depositStatus: depositStatus || undefined,
+    breakdown: nights.map((n) => ({
+      date: n.date,
+      type: n.type,
+      base: n.base,
+      nightlyAdjustment: n.nightlyAdjustment,
+      finalNight: n.finalNight,
+    })),
+    stayAdjustments,
+  });
+
   const formattedDateRange = `${new Date(editedStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(editedEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
 
   // Open nightly adjustment for a specific night row
@@ -495,8 +542,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     setShowCustomModal(true);
   };
 
-  // Approve with current pricing snapshot
-  const handleApprove = async () => {
+  // Send quote / deposit invoice (does not confirm or block calendar)
+  const handleSendQuote = async () => {
     setIsSaving(true);
     try {
       if (!proposedRangeValid) {
@@ -504,36 +551,16 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         setIsSaving(false);
         return;
       }
-      const finalPricing = {
-        baseRateSum: calculations.baseRateSum,
-        nightlyAdjSum: calculations.nightlyAdjSum,
-        stayAdjSum: calculations.stayAdjSum,
-        netAfterAdjustments: calculations.netAfterAdjustments,
-        jamaicaBeachTax: calculations.jamaicaBeachTax,
-        texasStateTax: calculations.texasStateTax,
-        cleaningFee: calculations.cleaning,
-        totalGuestPrice: calculations.totalGuest,
-        managementFee: calculations.managementFee,
-        ownerProceeds: calculations.ownerProceeds,
-        nights: nights.length,
-        // Tax exemptions (friends/family) — when true the corresponding tax above is 0
-        excludeCityTax,
-        excludeStateTax,
-        // Per-booking cleaning fee override (null/undefined = use global RateSetting)
-        customCleaningFee,
-        // Per-night breakdown only reflects nightly layer (stay is separate)
-        breakdown: nights.map(n => ({
-          date: n.date,
-          type: n.type,
-          base: n.base,
-          nightlyAdjustment: n.nightlyAdjustment,
-          finalNight: n.finalNight,
-        })),
-        stayAdjustments, // the separate bucket
-      };
+      if (depositAmount < 0) {
+        alert('Deposit amount cannot be negative.');
+        setIsSaving(false);
+        return;
+      }
 
-      // Include (possibly extended) dates so backend can update the booking
-      const savePayload: any = { pricing: finalPricing };
+      const savePayload: any = {
+        action: 'send_quote',
+        pricing: buildPricingSnapshot(),
+      };
       if (editedStart !== bookingRequest.startDate) savePayload.startDate = editedStart;
       if (editedEnd !== bookingRequest.endDate) savePayload.endDate = editedEnd;
 
@@ -543,16 +570,65 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         body: JSON.stringify(savePayload),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setCurrentStatus('CONFIRMED');
-        alert('Quote approved and sent to guest!');
-        router.push('/admin/requests');
+        setCurrentStatus('REVIEWING');
+        setDepositStatus(data.depositStatus || 'REQUESTED');
+        alert('Quote & deposit invoice emailed to guest. Dates are not held until deposit is marked received.');
       } else {
-        alert('Failed to approve. Please try again.');
+        alert(data.error || 'Failed to send quote. Please try again.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error approving request');
+      alert('Error sending quote');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleMarkDepositReceived = async (waive = false) => {
+    setIsSaving(true);
+    try {
+      const savePayload: any = {
+        action: 'draft',
+        pricing: buildPricingSnapshot(),
+      };
+      if (editedStart !== bookingRequest.startDate) savePayload.startDate = editedStart;
+      if (editedEnd !== bookingRequest.endDate) savePayload.endDate = editedEnd;
+
+      const saveRes = await fetch(`/api/admin/requests/${bookingRequest.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savePayload),
+      });
+      if (!saveRes.ok) {
+        const err = await saveRes.json().catch(() => ({}));
+        alert(err.error || 'Failed to save pricing before confirming deposit.');
+        setIsSaving(false);
+        return;
+      }
+
+      const res = await fetch(`/api/admin/requests/${bookingRequest.id}/deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: waive ? 'waive' : 'received' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCurrentStatus('CONFIRMED');
+        setDepositStatus(data.depositStatus || (waive ? 'WAIVED' : 'RECEIVED'));
+        alert(
+          waive
+            ? 'Deposit waived. Booking confirmed and dates are held.'
+            : 'Deposit marked received. Booking confirmed and dates are held.'
+        );
+        router.push('/admin/requests');
+      } else {
+        alert(data.error || 'Failed to confirm deposit.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error confirming deposit');
     } finally {
       setIsSaving(false);
     }
@@ -633,7 +709,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     }
   };
 
-  // Save as Draft (persist current pricing snapshot without changing status)
+  // Save as Draft (persist current pricing snapshot without emailing)
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
@@ -642,42 +718,29 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
         setIsSaving(false);
         return;
       }
-      const draftPricing = {
-        baseRateSum: calculations.baseRateSum,
-        nightlyAdjSum: calculations.nightlyAdjSum,
-        stayAdjSum: calculations.stayAdjSum,
-        netAfterAdjustments: calculations.netAfterAdjustments,
-        jamaicaBeachTax: calculations.jamaicaBeachTax,
-        texasStateTax: calculations.texasStateTax,
-        cleaningFee: calculations.cleaning,
-        totalGuestPrice: calculations.totalGuest,
-        managementFee: calculations.managementFee,
-        ownerProceeds: calculations.ownerProceeds,
-        nights: nights.length,
-        // Tax exemptions (friends/family)
-        excludeCityTax,
-        excludeStateTax,
-        // Per-booking cleaning fee override
-        customCleaningFee,
-        stayAdjustments,
-      };
 
-      const draftPayload: any = { pricing: draftPricing };
+      const draftPayload: any = {
+        action: 'draft',
+        pricing: buildPricingSnapshot(),
+      };
       if (editedStart !== bookingRequest.startDate) draftPayload.startDate = editedStart;
       if (editedEnd !== bookingRequest.endDate) draftPayload.endDate = editedEnd;
 
-      // Lightweight update via existing approve route (it only updates pricing + status)
-      // For simplicity we just persist pricing here. Status is managed separately.
-      // Here we just update via a direct fetch to a minimal update if needed. For now we optimistically consider it saved.
-      await fetch(`/api/admin/requests/${bookingRequest.id}/approve`, {
+      const res = await fetch(`/api/admin/requests/${bookingRequest.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draftPayload),
       });
 
-      alert('Pricing saved as draft.');
+      if (res.ok) {
+        setCurrentStatus('REVIEWING');
+        alert('Pricing & deposit saved as draft.');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to save draft.');
+      }
     } catch (e) {
-      alert('Draft saved locally (pricing will be sent when you Confirm).');
+      alert('Failed to save draft.');
     } finally {
       setIsSaving(false);
     }
@@ -713,6 +776,23 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
             }`}>
               {currentStatus}
             </span>
+            {depositStatus && !isSyncedVRBO && (
+              <div className="mt-1">
+                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${
+                  depositStatus === 'RECEIVED' || depositStatus === 'WAIVED'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {depositStatus === 'REQUESTED' && typeof depositAmount === 'number'
+                    ? `Deposit $${depositAmount.toFixed(0)} due`
+                    : depositStatus === 'RECEIVED'
+                      ? 'Deposit received'
+                      : depositStatus === 'WAIVED'
+                        ? 'Deposit waived'
+                        : depositStatus}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1182,6 +1262,47 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
                     <span className="font-bold text-lg text-slate-900">Total to Guest</span>
                     <span className="font-bold text-2xl text-emerald-600">${calculations.totalGuest.toFixed(2)}</span>
                   </div>
+
+                  <div className="pt-4 mt-2 border-t border-dashed border-slate-200 space-y-2">
+                    <label className="block text-sm font-medium text-slate-800">
+                      Deposit to invoice
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={depositAmount}
+                        onChange={(e) => {
+                          setDepositAmountTouched(true);
+                          setDepositAmount(parseFloat(e.target.value) || 0);
+                        }}
+                        className="w-full border rounded-lg pl-7 pr-3 py-2 text-sm"
+                        disabled={isSyncedVRBO || depositStatus === 'RECEIVED' || depositStatus === 'WAIVED'}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Defaults to 50% of total. Balance due before arrival:{' '}
+                      <span className="font-medium text-slate-700">
+                        ${Math.max(0, calculations.totalGuest - depositAmount).toFixed(2)}
+                      </span>
+                    </p>
+                    {depositStatus && (
+                      <p className="text-xs font-medium text-slate-700">
+                        Deposit status:{' '}
+                        <span
+                          className={
+                            depositStatus === 'RECEIVED' || depositStatus === 'WAIVED'
+                              ? 'text-emerald-700'
+                              : 'text-amber-700'
+                          }
+                        >
+                          {depositStatus}
+                        </span>
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1236,13 +1357,44 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
             {!isSyncedVRBO && (
               <>
                 <button
-                  onClick={handleApprove}
-                  disabled={isSaving}
+                  onClick={handleSendQuote}
+                  disabled={isSaving || currentStatus === 'REJECTED' || currentStatus === 'CANCELLED'}
                   className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl flex items-center justify-center gap-2 disabled:opacity-70"
                 >
-                  <i className="fa-solid fa-check"></i>
-                  Confirm &amp; Send Quote
+                  <i className="fa-solid fa-paper-plane"></i>
+                  {depositStatus === 'REQUESTED' ? 'Resend Quote & Deposit Invoice' : 'Send Quote & Deposit Invoice'}
                 </button>
+
+                <button
+                  onClick={() => handleMarkDepositReceived(false)}
+                  disabled={
+                    isSaving ||
+                    depositStatus === 'RECEIVED' ||
+                    depositStatus === 'WAIVED' ||
+                    currentStatus === 'CONFIRMED' ||
+                    currentStatus === 'REJECTED' ||
+                    currentStatus === 'CANCELLED'
+                  }
+                  className="w-full py-3 bg-teal-700 hover:bg-teal-800 text-white font-semibold rounded-xl flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  <i className="fa-solid fa-hand-holding-dollar"></i>
+                  {depositStatus === 'RECEIVED' || currentStatus === 'CONFIRMED'
+                    ? 'Deposit Received — Confirmed'
+                    : 'Mark Deposit Received & Confirm'}
+                </button>
+
+                {currentStatus !== 'CONFIRMED' &&
+                  currentStatus !== 'REJECTED' &&
+                  currentStatus !== 'CANCELLED' &&
+                  depositStatus !== 'WAIVED' && (
+                  <button
+                    onClick={() => handleMarkDepositReceived(true)}
+                    disabled={isSaving}
+                    className="w-full py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg border border-slate-300"
+                  >
+                    Waive Deposit &amp; Confirm
+                  </button>
+                )}
 
                 <button
                   onClick={handleSaveDraft}
