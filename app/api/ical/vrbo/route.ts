@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { stayDateKey } from '@/lib/date-range';
 
 // Simple .ics generator for VRBO
 // GET /api/ical/vrbo
@@ -35,15 +36,15 @@ export async function GET() {
     for (const booking of confirmedBookings) {
       const uid = `bayfront-${booking.id}@bayfrontretreat.com`;
       const dtStamp = booking.createdAt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-      const dtStart = booking.startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-      const dtEnd = booking.endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const dtStart = stayDateKey(booking.startDate).replace(/-/g, '');
+      const dtEnd = stayDateKey(booking.endDate).replace(/-/g, '');
 
       lines.push(
         'BEGIN:VEVENT',
         `UID:${uid}`,
         `DTSTAMP:${dtStamp}`,
-        `DTSTART;VALUE=DATE:${dtStart.substring(0, 8)}`,
-        `DTEND;VALUE=DATE:${dtEnd.substring(0, 8)}`,
+        `DTSTART;VALUE=DATE:${dtStart}`,
+        `DTEND;VALUE=DATE:${dtEnd}`,
         `SUMMARY:Bayfront Retreat - Reserved`,
         `DESCRIPTION:This date is booked and unavailable.`,
         'END:VEVENT'

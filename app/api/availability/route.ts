@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { stayDateKey } from '@/lib/date-range';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,8 +44,8 @@ export async function GET(request: NextRequest) {
 
     const unavailablePeriods = [
       ...confirmedBookings.map((booking) => ({
-        startDate: booking.startDate.toISOString().split('T')[0],
-        endDate: booking.endDate.toISOString().split('T')[0],
+        startDate: stayDateKey(booking.startDate),
+        endDate: stayDateKey(booking.endDate),
         source: 'booking' as const,
       })),
       ...blockedPeriods.map((block) => ({

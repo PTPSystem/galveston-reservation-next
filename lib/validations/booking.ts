@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { stayNights } from '@/lib/date-range'
+
 export const bookingRequestSchema = z
   .object({
     guestName: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -33,9 +35,7 @@ export const validateBookingDates = (
     errors.push('End date must be after start date')
   }
 
-  const nights = Math.ceil(
-    (data.endDate.getTime() - data.startDate.getTime()) / (1000 * 60 * 60 * 24)
-  )
+  const nights = stayNights(data.startDate, data.endDate)
 
   if (nights < minNights) {
     errors.push(`Minimum stay is ${minNights} night${minNights === 1 ? '' : 's'}`)

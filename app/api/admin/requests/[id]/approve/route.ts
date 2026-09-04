@@ -7,6 +7,7 @@ import {
   findAvailabilityConflict,
 } from '@/lib/availability';
 import { defaultDepositAmount } from '@/lib/types/pricing';
+import { toStayCheckIn, toStayCheckOut } from '@/lib/date-range';
 
 /**
  * Persist quote pricing and optionally email the guest an invoice.
@@ -54,8 +55,8 @@ export async function POST(
     );
   }
 
-  const nextStart = body.startDate ? new Date(body.startDate) : booking.startDate;
-  const nextEnd = body.endDate ? new Date(body.endDate) : booking.endDate;
+  const nextStart = body.startDate ? toStayCheckIn(body.startDate) : booking.startDate;
+  const nextEnd = body.endDate ? toStayCheckOut(body.endDate) : booking.endDate;
 
   const conflict = await findAvailabilityConflict(nextStart, nextEnd, {
     excludeBookingId: requestId,
@@ -112,20 +113,16 @@ export async function POST(
     // Quotes awaiting deposit stay REVIEWING; never auto-CONFIRMED here
     status: booking.status === 'CONFIRMED' ? 'CONFIRMED' : 'REVIEWING',
   };
-  if (body.startDate) updateData.startDate = new Date(body.startDate);
-  if (body.endDate) updateData.endDate = new Date(body.endDate);
+  if (body.startDate) updateData.startDate = nextStart;
+  if (body.endDate) updateData.endDate = nextEnd;
 
   const updated = await prisma.bookingRequest.update({
     where: { id: requestId },
     data: updateData,
   });
 
-  const emailStart = body.startDate
-    ? new Date(body.startDate).toISOString()
-    : updated.startDate.toISOString();
-  const emailEnd = body.endDate
-    ? new Date(body.endDate).toISOString()
-    : updated.endDate.toISOString();
+  const emailStart = nextStart.toISOString();
+  const emailEnd = nextEnd.toISOString();
 
   if (action === 'send_quote' && updated.approvalToken) {
     await sendQuoteEmail({

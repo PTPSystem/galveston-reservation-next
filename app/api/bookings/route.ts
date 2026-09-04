@@ -5,6 +5,7 @@ import {
   availabilityConflictMessage,
   findAvailabilityConflict,
 } from '@/lib/availability';
+import { toStayCheckIn, toStayCheckOut } from '@/lib/date-range';
 import { randomBytes } from 'crypto';
 import { sendBookingConfirmationEmail, sendInternalNewRequestNotification } from '@/lib/email';
 import { getEmailRecipients } from '@/lib/email-settings';
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
+    const startDate = toStayCheckIn(data.startDate);
+    const endDate = toStayCheckOut(data.endDate);
 
     const rateSetting = await prisma.rateSetting.findFirst();
     const minNights = rateSetting?.minNights ?? 2;
@@ -35,8 +38,8 @@ export async function POST(request: NextRequest) {
     // Additional business rules
     const dateErrors = validateBookingDates(
       {
-        startDate: data.startDate,
-        endDate: data.endDate,
+        startDate,
+        endDate,
       },
       { minNights }
     );
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const conflict = await findAvailabilityConflict(data.startDate, data.endDate);
+    const conflict = await findAvailabilityConflict(startDate, endDate);
     if (conflict) {
       return NextResponse.json(
         {
@@ -68,8 +71,8 @@ export async function POST(request: NextRequest) {
         guestName: data.guestName,
         guestEmail: data.guestEmail,
         guestPhone: data.guestPhone || null,
-        startDate: data.startDate,
-        endDate: data.endDate,
+        startDate,
+        endDate,
         numGuests: data.numGuests,
         specialRequests: data.specialRequests || null,
         status: 'PENDING',
@@ -82,8 +85,8 @@ export async function POST(request: NextRequest) {
     await sendBookingConfirmationEmail({
       to: data.guestEmail,
       guestName: data.guestName,
-      startDate: data.startDate.toISOString().split('T')[0],
-      endDate: data.endDate.toISOString().split('T')[0],
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       numGuests: data.numGuests,
       bookingId: bookingRequest.id,
       approvalToken: approvalToken,
@@ -98,8 +101,8 @@ export async function POST(request: NextRequest) {
         recipients: internalEmails,
         guestName: data.guestName,
         guestEmail: data.guestEmail,
-        startDate: data.startDate.toISOString().split('T')[0],
-        endDate: data.endDate.toISOString().split('T')[0],
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         numGuests: data.numGuests,
         bookingId: bookingRequest.id,
         approvalToken,

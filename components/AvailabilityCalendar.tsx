@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { DayPicker, DateRange } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import Link from 'next/link';
+import {
+  CHECK_IN_TIME_LABEL,
+  CHECK_OUT_TIME_LABEL,
+  stayOverlapsUnavailablePeriod,
+  unavailableDisabledRange,
+} from '@/lib/date-range';
 
 interface UnavailablePeriod {
   startDate: string;
@@ -39,10 +45,9 @@ export default function AvailabilityCalendar({ minNights = 2 }: { minNights?: nu
     fetchAvailability();
   }, []);
 
-  const disabledDays = unavailablePeriods.map(period => ({
-    from: new Date(period.startDate),
-    to: new Date(period.endDate),
-  }));
+  const disabledDays = unavailablePeriods
+    .map(unavailableDisabledRange)
+    .filter((range): range is { from: Date; to: Date } => range != null);
 
   const nightsSelected =
     selectedRange?.from && selectedRange?.to
@@ -53,20 +58,27 @@ export default function AvailabilityCalendar({ minNights = 2 }: { minNights?: nu
 
   const tooShort = nightsSelected > 0 && nightsSelected < effectiveMinNights;
 
-  const hasConflict = selectedRange?.from && selectedRange?.to
-    ? unavailablePeriods.some(period => {
-        const periodStart = new Date(period.startDate);
-        const periodEnd = new Date(period.endDate);
-        return !(selectedRange.to! < periodStart || selectedRange.from! > periodEnd);
-      })
-    : false;
+  const selectedStart =
+    selectedRange?.from &&
+    `${selectedRange.from.getFullYear()}-${String(selectedRange.from.getMonth() + 1).padStart(2, '0')}-${String(selectedRange.from.getDate()).padStart(2, '0')}`;
+  const selectedEnd =
+    selectedRange?.to &&
+    `${selectedRange.to.getFullYear()}-${String(selectedRange.to.getMonth() + 1).padStart(2, '0')}-${String(selectedRange.to.getDate()).padStart(2, '0')}`;
+
+  const hasConflict =
+    selectedStart && selectedEnd
+      ? unavailablePeriods.some((period) =>
+          stayOverlapsUnavailablePeriod(selectedStart, selectedEnd, period)
+        )
+      : false;
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  const bookingLink = selectedRange?.from && selectedRange?.to && !hasConflict && !tooShort
-    ? `/request?startDate=${selectedRange.from.toISOString().split('T')[0]}&endDate=${selectedRange.to.toISOString().split('T')[0]}`
-    : null;
+  const bookingLink =
+    selectedRange?.from && selectedRange?.to && selectedStart && selectedEnd && !hasConflict && !tooShort
+      ? `/request?startDate=${selectedStart}&endDate=${selectedEnd}`
+      : null;
 
   return (
     <div className="bg-white p-8 rounded-2xl border">
@@ -110,7 +122,7 @@ export default function AvailabilityCalendar({ minNights = 2 }: { minNights?: nu
               <div className="bg-slate-50 p-6 rounded-xl">
                 <div className="text-sm text-slate-500 mb-1">You selected</div>
                 <div className="font-medium text-lg mb-4">
-                  {formatDate(selectedRange.from)} — {formatDate(selectedRange.to)}
+                  {formatDate(selectedRange.from)}, {CHECK_IN_TIME_LABEL} — {formatDate(selectedRange.to)}, {CHECK_OUT_TIME_LABEL}
                 </div>
 
                 {hasConflict ? (
@@ -143,8 +155,10 @@ export default function AvailabilityCalendar({ minNights = 2 }: { minNights?: nu
                 <ul className="text-xs text-slate-600 space-y-1 max-h-40 overflow-auto">
                   {unavailablePeriods.slice(0, 6).map((p, i) => (
                     <li key={i}>
-                      {new Date(p.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                      {new Date(p.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {new Date(p.startDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {p.source === 'booking' ? `, ${CHECK_IN_TIME_LABEL}` : ''} –{' '}
+                      {new Date(p.endDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {p.source === 'booking' ? `, ${CHECK_OUT_TIME_LABEL}` : ''}
                       {p.source === 'blocked' && <span className="ml-1 text-red-600">(manually blocked{p.reason ? `: ${p.reason}` : ''})</span>}
                     </li>
                   ))}

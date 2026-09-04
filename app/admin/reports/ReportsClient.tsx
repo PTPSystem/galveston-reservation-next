@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef } from 'react';
 import { UploadCloud } from 'lucide-react';
+import { formatStayDateTime } from '@/lib/date-range';
 
 interface MonthlySummary {
   yearMonth: string;
@@ -754,7 +755,7 @@ export default function ReportsClient({
                         <tr key={idx} className="border-b last:border-0">
                           <td className="py-1">{b.guestName}</td>
                           <td className="py-1 text-xs text-slate-600">
-                            {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                            {formatStayDateTime(b.startDate, 'check-in')} – {formatStayDateTime(b.endDate, 'check-out')}
                           </td>
                           <td className="py-1">
                             <span className={`px-2 py-0.5 rounded text-xs ${b.source === 'VRBO' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>

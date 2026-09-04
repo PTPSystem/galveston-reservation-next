@@ -1,5 +1,6 @@
 import ICAL from 'ical.js';
 import prisma from '@/lib/prisma';
+import { toStayCheckIn, toStayCheckOut } from '@/lib/date-range';
 
 const VRBO_ICAL_URL = process.env.VRBO_ICAL_URL || '';
 
@@ -63,20 +64,12 @@ export async function syncVrboCalendar(): Promise<{
 
       if (!event.startDate || !event.endDate) continue;
 
-      // Force UTC midnight dates using the iCal components directly.
-      // Previously toJSDate() used local-time new Date(y, m, d) which produced
-      // different UTC instants depending on the machine's timezone (Vercel=UTC vs local dev).
-      // That caused the date-key matching in CSV import to fail for "May 22" etc.
-      const start = new Date(Date.UTC(
-        event.startDate.year,
-        event.startDate.month - 1,
-        event.startDate.day
-      ));
-      const end = new Date(Date.UTC(
-        event.endDate.year,
-        event.endDate.month - 1,
-        event.endDate.day
-      ));
+      // iCal DATE values are calendar days (no timezone). Store check-in 3pm /
+      // check-out 11am America/Chicago so back-to-back stays do not overlap.
+      const ymdStart = `${event.startDate.year}-${String(event.startDate.month).padStart(2, '0')}-${String(event.startDate.day).padStart(2, '0')}`;
+      const ymdEnd = `${event.endDate.year}-${String(event.endDate.month).padStart(2, '0')}-${String(event.endDate.day).padStart(2, '0')}`;
+      const start = toStayCheckIn(ymdStart);
+      const end = toStayCheckOut(ymdEnd);
 
       vrboEvents.push({
         uid: event.uid || `generated-${Date.now()}`,

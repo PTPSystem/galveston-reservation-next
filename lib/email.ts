@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { formatStayDateTime } from '@/lib/date-range';
 
 const resend = process.env.RESEND_API_KEY 
   ? new Resend(process.env.RESEND_API_KEY) 
@@ -45,16 +46,8 @@ export async function sendBookingConfirmationEmail({
     return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
-  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+  const formattedStart = formatStayDateTime(startDate, 'check-in');
+  const formattedEnd = formatStayDateTime(endDate, 'check-out');
 
   try {
     const { data, error } = await resend.emails.send({
@@ -143,16 +136,8 @@ export async function sendQuoteEmail({
     return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
-  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+  const formattedStart = formatStayDateTime(startDate, 'check-in');
+  const formattedEnd = formatStayDateTime(endDate, 'check-out');
 
   const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
   const base = pricing.baseRateSum?.toFixed(2) ?? '0.00';
@@ -323,15 +308,8 @@ export async function sendInternalNewRequestNotification({
     return { success: false, skipped: true, reason: 'invalid_from_email' };
   }
 
-  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  });
-  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const formattedStart = formatStayDateTime(startDate, 'check-in');
+  const formattedEnd = formatStayDateTime(endDate, 'check-out');
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'bookings@yourdomain.com';
 
@@ -425,16 +403,8 @@ export async function sendInternalBookingConfirmedEmail({
     return { success: false, skipped: true };
   }
 
-  const formattedStart = new Date(startDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-  const formattedEnd = new Date(endDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
+  const formattedStart = formatStayDateTime(startDate, 'check-in');
+  const formattedEnd = formatStayDateTime(endDate, 'check-out');
 
   const total = pricing.totalGuestPrice?.toFixed(2) ?? '—';
 

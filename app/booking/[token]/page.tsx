@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
+import { formatStayDateTime } from '@/lib/date-range';
 
 // Prevent this page from being statically generated at build time
 // (it needs database access at runtime)
@@ -36,15 +37,6 @@ export default async function GuestQuoteView({ params }: Props) {
       ? Math.max(0, pricing.totalGuestPrice - depositAmount)
       : null;
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-
   return (
     <div className="max-w-3xl mx-auto py-12 px-6">
       <div className="mb-8">
@@ -55,7 +47,7 @@ export default async function GuestQuoteView({ params }: Props) {
 
       <h1 className="text-3xl font-semibold tracking-tight mb-2">Your Quote</h1>
       <p className="text-slate-700 mb-8">
-        {booking.guestName} • {formatDate(booking.startDate)} – {formatDate(booking.endDate)}
+        {booking.guestName} • {formatStayDateTime(booking.startDate, 'check-in')} – {formatStayDateTime(booking.endDate, 'check-out')}
       </p>
 
       {!hasQuote && (

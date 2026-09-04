@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { dateRangesOverlap } from '@/lib/date-range';
+import { formatStayDate, CHECK_IN_TIME_LABEL, CHECK_OUT_TIME_LABEL, stayOverlapsUnavailablePeriod } from '@/lib/date-range';
 import { defaultDepositAmount } from '@/lib/types/pricing';
 
 interface BookingRequest {
@@ -275,8 +275,8 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
   // Helpers for date extension
   const isRangeAvailable = (start: string, end: string): boolean => {
     if (!start || !end) return false;
-    return !unavailableForCheck.some((p: { startDate: string; endDate: string }) =>
-      dateRangesOverlap(start, end, p.startDate, p.endDate)
+    return !unavailableForCheck.some((p: { startDate: string; endDate: string; source?: 'booking' | 'blocked' }) =>
+      stayOverlapsUnavailablePeriod(start, end, p)
     );
   };
 
@@ -403,7 +403,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
     stayAdjustments,
   });
 
-  const formattedDateRange = `${new Date(editedStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(editedEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${nights.length} nights)`;
+  const formattedDateRange = `${formatStayDate(editedStart, { month: 'short', day: 'numeric' })}, ${CHECK_IN_TIME_LABEL} – ${formatStayDate(editedEnd, { month: 'short', day: 'numeric', year: 'numeric' })}, ${CHECK_OUT_TIME_LABEL} (${nights.length} nights)`;
 
   // Open nightly adjustment for a specific night row
   const openDailyAdjustment = (index: number) => {
@@ -803,7 +803,7 @@ export default function QuoteClient({ bookingRequest, holidayPeriods, rateSettin
           <div className="flex items-center gap-2 mb-2">
             <i className="fa-solid fa-calendar-plus text-emerald-600"></i>
             <span className="font-medium text-slate-900">Extend Stay Dates</span>
-            <span className="text-xs text-slate-500">(tack on immediately before or after — only if open)</span>
+            <span className="text-xs text-slate-500">(check-in {CHECK_IN_TIME_LABEL} / check-out {CHECK_OUT_TIME_LABEL}, America/Chicago — only if open)</span>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>

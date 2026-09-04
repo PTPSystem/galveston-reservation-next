@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { formatStayDateTime, stayNights } from '@/lib/date-range';
 
 interface Request {
   id: number;
@@ -295,11 +296,9 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
           </div>
         ) : (
           filteredAndSorted.map((req) => {
-            const nights = Math.ceil(
-              (new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            const startDate = new Date(req.startDate).toLocaleDateString();
-            const endDate = new Date(req.endDate).toLocaleDateString();
+            const nights = stayNights(req.startDate, req.endDate);
+            const startDate = formatStayDateTime(req.startDate, 'check-in');
+            const endDate = formatStayDateTime(req.endDate, 'check-out');
             const submitted = new Date(req.createdAt).toLocaleDateString();
             const depositBadge = formatDepositBadge(req);
 
@@ -435,9 +434,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                   </tr>
                 )}
                 {filteredAndSorted.map((req) => {
-                  const nights = Math.ceil(
-                    (new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)
-                  );
+                  const nights = stayNights(req.startDate, req.endDate);
                   const depositBadge = formatDepositBadge(req);
                   return (
                     <tr key={req.id} className="group hover:bg-slate-50">
@@ -446,7 +443,7 @@ export default function RequestsClient({ requests: initialRequests }: RequestsCl
                         <div className="text-xs text-slate-800">{req.guestEmail}</div>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-sm">
-                        {new Date(req.startDate).toLocaleDateString()} → {new Date(req.endDate).toLocaleDateString()}
+                        {formatStayDateTime(req.startDate, 'check-in')} → {formatStayDateTime(req.endDate, 'check-out')}
                       </td>
                       <td className="px-3 sm:px-6 py-4 text-center font-medium">{nights}</td>
                       <td className="px-3 sm:px-6 py-4 text-center">{req.numGuests}</td>

@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import {
+  CHECK_IN_TIME_LABEL,
+  CHECK_OUT_TIME_LABEL,
+  stayOverlapsUnavailablePeriod,
+} from '@/lib/date-range';
 
 export default function RequestForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,7 +22,9 @@ export default function RequestForm() {
   const guestDropdownRef = useRef<HTMLDivElement>(null);
 
   // Availability data
-  const [unavailablePeriods, setUnavailablePeriods] = useState<Array<{ startDate: string; endDate: string }>>([]);
+  const [unavailablePeriods, setUnavailablePeriods] = useState<
+    Array<{ startDate: string; endDate: string; source?: 'booking' | 'blocked' }>
+  >([]);
   const [loadingAvailability, setLoadingAvailability] = useState(true);
   const [minNights, setMinNights] = useState(2);
 
@@ -84,9 +91,12 @@ export default function RequestForm() {
   };
 
   // Check if selected dates overlap with unavailable periods
-  const hasDateConflict = startDate && endDate && unavailablePeriods.some(period => {
-    return !(endDate < period.startDate || startDate > period.endDate);
-  });
+  const hasDateConflict =
+    startDate &&
+    endDate &&
+    unavailablePeriods.some((period) =>
+      stayOverlapsUnavailablePeriod(startDate, endDate, period)
+    );
 
   const nightsCount =
     startDate && endDate
@@ -228,7 +238,9 @@ export default function RequestForm() {
 
         <div className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5">Check-in Date</label>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5">
+              Check-in Date ({CHECK_IN_TIME_LABEL} local)
+            </label>
             <input
               type="date"
               name="startDate"
@@ -240,7 +252,9 @@ export default function RequestForm() {
             {errors.startDate && <p className="text-sm text-red-600 mt-1">{errors.startDate}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5">Check-out Date</label>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5">
+              Check-out Date ({CHECK_OUT_TIME_LABEL} local)
+            </label>
             <input
               type="date"
               name="endDate"
